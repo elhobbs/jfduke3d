@@ -381,34 +381,42 @@ void cacheit(void)
 
 void xyzmirror(short i,short wn)
 {
+#ifdef __MEASURE__
     uint64_t ds_time();
     static uint64_t tms[8];
     int a = 0;
-
-    tms[a++] = ds_time();
+	#define GET_TIME tms[a] = ds_time();a++;
     printf("camera: %d %d\n",tilesizx[PN],tilesizy[PN]);
+#else
+	#define GET_TIME;
+#endif
+
+    GET_TIME
     //if (waloff[wn] == 0) loadtile(wn);
     setviewtotile(wn,tilesizy[wn],tilesizx[wn]);
-    tms[a++] = ds_time();
+    GET_TIME
 
     drawrooms(SX,SY,SZ,SA,100+sprite[i].shade,SECT);
-    tms[a++] = ds_time();
+    GET_TIME
     display_mirror = 1; animatesprites(SX,SY,SA,65536L); display_mirror = 0;
-    tms[a++] = ds_time();
+    GET_TIME
     drawmasks();
-    tms[a++] = ds_time();
+    GET_TIME
 
     setviewback();
-    tms[a++] = ds_time();
+    GET_TIME
     squarerotatetile(wn);
-    tms[a++] = ds_time();
+    GET_TIME
 #if USE_POLYMOST && USE_OPENGL
     invalidatetile(wn,-1,255);
 #endif
+
+#ifdef __MEASURE__
     for( int j=1;j<a;j++) {
         printf(" %d: %8d\n", i, (int)(tms[j] - tms[j-1]));
     }
     printf("=== %8d\n", (int)(tms[a-1] - tms[0]));
+#endif
 }
 
 void vscrn(void)

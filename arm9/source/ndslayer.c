@@ -418,17 +418,22 @@ void copy_buffer(u16 *dest16, byte *buffer) {
 //
 // showframe() -- update the display
 //
-//static uint64_t last_frame_ticks = 0;
+#ifdef __MEASURE__
+static uint64_t last_frame_ticks = 0;
+#endif
+
 void showframe(void)
 {
 	if(frameplace == 0) {
 		return;
 	}
-	//uint64_t frame_ticks = ds_time();
-	//printf("showframe %lld\n", frame_ticks - last_frame_ticks);
-	swiWaitForVBlank();
+#ifdef __MEASURE__
+	uint64_t frame_ticks = ds_time();
+	printf("showframe %lld\n", frame_ticks - last_frame_ticks);
+	last_frame_ticks = frame_ticks;
+	//swiWaitForVBlank();
+#endif
 	copy_buffer(surface,frameplace);
-	//last_frame_ticks = frame_ticks;
 }
 
 void wm_setapptitle(const char *name)
