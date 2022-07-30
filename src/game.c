@@ -7350,6 +7350,7 @@ if (VOLUMEALL) {
     uinfo.button0 = uinfo.button1 = FALSE;
     KB_FlushKeyboardQueue();
     do {
+        waitforit("clearallviews");
         clearallviews(0);
         rotatesprite(0,0,65536L,0,BETASCREEN,0,0,2+8+16+64,0,0,xdim-1,ydim-1);
 
@@ -7421,10 +7422,13 @@ if (VOLUMEALL) {
         nextpage();
     }
 
+        waitforit("waitforeverybody");
     waitforeverybody();
 
+        waitforit("flushperms");
     flushperms();
     clearallviews(0L);
+        waitforit("nextpage");
     nextpage();
 
     //ps[myconnectindex].palette = palette;
@@ -7432,7 +7436,9 @@ if (VOLUMEALL) {
     sound(NITEVISION_ONOFF);
 
     //palto(0,0,0,0);
+        waitforit("palto");
     clearallviews(0L);
+        waitforit("Logo out");
 }
 
 void loadtmb(void)
@@ -7500,18 +7506,21 @@ void Startup(void)
 {
     int i;
 
+    waitforit("initengine");
     if (initengine()) {
        wm_msgbox("Build Engine Initialisation Error",
                "There was a problem initialising the Build engine: %s", engineerrstr);
        exit(1);
     }
 
+    waitforit("compilecons");
     compilecons();
 
 #ifdef AUSTRALIA
     ud.lockout = 1;
 #endif
 
+    waitforit("CommandSoundToggleOff");
     if (CommandSoundToggleOff) SoundToggle = 0;
     if (CommandMusicToggleOff) MusicToggle = 0;
     if (CommandName) strcpy(myname,CommandName);
@@ -7535,15 +7544,18 @@ void Startup(void)
        }
     }
 
+    waitforit("VOLUMEONE");
     if (VOLUMEONE) {
        buildprintf("*** You have run Duke Nukem 3D %d times. ***\n\n",ud.executions);
        if(ud.executions >= 50) buildprintf("IT IS NOW TIME TO UPGRADE TO THE COMPLETE VERSION!!!\n");
     }
 
+    waitforit("CONTROL_Startup");
     if (CONTROL_Startup( 1, &GetTime, TICRATE )) {
         uninitengine();
         exit(1);
     }
+    waitforit("SetupGameButtons");
     SetupGameButtons();
     CONFIG_SetupMouse();
     CONFIG_SetupJoystick();
@@ -7551,6 +7563,7 @@ void Startup(void)
     CONTROL_JoystickEnabled = (UseJoystick && CONTROL_JoyPresent);
     CONTROL_MouseEnabled = (UseMouse && CONTROL_MousePresent);
 
+    waitforit("inittimer");
     inittimer(TICRATE);
 
     //buildprintf("* Hold Esc to Abort. *\n");
@@ -7668,6 +7681,24 @@ int shareware = 0;
 int gametype = 0;
 const char *gameeditionname = "Unknown edition";
 
+void swiWaitForVBlank();
+unsigned int keysCurrent();
+
+void waitforit(char *str) {
+#if 0
+    puts(str);
+    puts("\n");
+    puts("\npress a button ...");
+    do {
+        swiWaitForVBlank();
+    } while(keysCurrent() == 0);
+    do {
+        swiWaitForVBlank();
+    } while(keysCurrent() != 0);
+    puts("done\n");
+#endif
+}
+
 int app_main(int argc, char const * const argv[])
 {
     int i, j, k, l;
@@ -7710,6 +7741,7 @@ int app_main(int argc, char const * const argv[])
         }
     }
 
+    waitforit("checkcommandline");
     checkcommandline(argc,argv);
 
     {
@@ -7727,6 +7759,7 @@ int app_main(int argc, char const * const argv[])
     // creating a 'user_profiles_disabled' file in the current working
     // directory where the game was launched makes the installation
     // "portable" by writing into the working directory
+    waitforit("user_profiles_disabled");
     if (access("user_profiles_disabled", F_OK) == 0) {
         char cwd[BMAX_PATH+1];
         if (getcwd(cwd, sizeof(cwd))) {
@@ -7760,6 +7793,7 @@ int app_main(int argc, char const * const argv[])
         }
     }
 
+    waitforit("buildsetlogfile");
     buildsetlogfile("duke3d.log");
 
     wm_setapptitle("JFDuke3D");
@@ -7775,11 +7809,13 @@ int app_main(int argc, char const * const argv[])
        exit(1);
     }
 
+    waitforit("CONFIG_ReadSetup");
     configloaded = CONFIG_ReadSetup();
     if (getenv("DUKE3DGRP")) {
         strncpy(duke3dgrp, getenv("DUKE3DGRP"), BMAX_PATH);
     }
 
+    waitforit("ScanGroups");
     ScanGroups();
     {
         // Try and identify duke3dgrp in the set of GRPs.
@@ -7798,6 +7834,7 @@ int app_main(int argc, char const * const argv[])
         }
     }
 
+    waitforit("netparam");
     if (netparam) { // -net parameter on command line.
         netsuccess = initmultiplayersparms(endnetparam - netparam, &argv[netparam]);
     }
@@ -7864,6 +7901,7 @@ int app_main(int argc, char const * const argv[])
     }
 #endif
 
+    waitforit("gamegrp");
     if (gamegrp) {
         Bstrcpy(duke3dgrp, gamegrp->name);
         gametype = gamegrp->game;
@@ -7873,8 +7911,10 @@ int app_main(int argc, char const * const argv[])
         strcpy(defaultconfilename, "nam.con");
     }
 
+    waitforit("FreeGroups");
     FreeGroups();
 
+    waitforit("initgroupfile");
     buildprintf("GRP file: %s\n", duke3dgrp);
     initgroupfile(duke3dgrp);
     i = kopen4load("DUKESW.BIN",1);
@@ -7883,6 +7923,7 @@ int app_main(int argc, char const * const argv[])
         kclose(i);
     }
 
+    waitforit("CommandGrps");
     {
         struct strllist *s;
         while (CommandGrps) {
@@ -7900,8 +7941,10 @@ int app_main(int argc, char const * const argv[])
         }
     }
 
+    waitforit("RegisterShutdownFunction");
     RegisterShutdownFunction( Shutdown );
 
+    waitforit("OSD_SetFunctions");
     OSD_SetFunctions(
         GAME_drawosdchar,
         GAME_drawosdstr,
@@ -7912,9 +7955,11 @@ int app_main(int argc, char const * const argv[])
         (int(*)(void))GetTime,
         GAME_onshowosd
     );
+    waitforit("OSD_SetParameters");
     OSD_SetParameters(0,2, 0,0, 4,0);
     registerosdcommands();
 
+    waitforit("Startup");
     Startup();
     if (quitevent) return 0;
 
@@ -7971,9 +8016,11 @@ int app_main(int argc, char const * const argv[])
 
     ud.last_level = -1;
 
-   RTS_Init(ud.rtsname);
-   if(numlumps) buildprintf("Using .RTS file:%s\n",ud.rtsname);
+    waitforit("RTS_Init");
+    RTS_Init(ud.rtsname);
+    if(numlumps) buildprintf("Using .RTS file:%s\n",ud.rtsname);
 
+    waitforit("setgamemode");
     if( setgamemode(ScreenMode,ScreenWidth,ScreenHeight,ScreenBPP) < 0 )
     {
         buildprintf("Failure setting video mode %dx%dx%d %s! Attempting safer mode...\n",
@@ -8002,10 +8049,12 @@ if (VOLUMEONE) {
             gameexit(" The full version of Duke Nukem 3D supports 5 or more players.");
 }
 
+    waitforit("setbrightness");
     setbrightness(ud.brightness>>2,&ps[myconnectindex].palette[0],0);
 
     //ESCESCAPE;
 
+    waitforit("FX_StopAllSounds");
     FX_StopAllSounds();
     clearsoundlocks();
 
@@ -8027,20 +8076,33 @@ if (VOLUMEONE) {
 //    getpackets();
 
     MAIN_LOOP_RESTART:
+    waitforit("MAIN_LOOP_RESTART");
 
     wm_setwindowtitle(gameeditionname);
 
-    if(ud.warp_on == 0)
+    if(ud.warp_on == 0) {
+    waitforit("Logo");
         Logo();
+    waitforit("Logo 2");
+    }
     else if(ud.warp_on == 1)
     {
+    waitforit("newgame");
         newgame(ud.m_volume_number,ud.m_level_number,ud.m_player_skill);
-        if (enterlevel(MODE_GAME)) backtomenu();
+        if (enterlevel(MODE_GAME)) {
+    waitforit("backtomenu");
+            backtomenu();
+        }
     }
-    else vscrn();
+    else {
+    waitforit("vscrn");
+        vscrn();
+    }
 
+    waitforit("before ud.warp_on == 0 && playback");
     if( ud.warp_on == 0 && playback() )
     {
+    waitforit("in ud.warp_on == 0 && playback");
         FX_StopAllSounds();
         clearsoundlocks();
         nomorelogohack = 1;
@@ -8056,8 +8118,10 @@ if (VOLUMEONE) {
     ud.warp_on = 0;
     KB_KeyDown[sc_Pause] = 0;   // JBF: I hate the pause key
 
+    waitforit("before MODE_END");
     while ( !(ps[myconnectindex].gm&MODE_END) ) //The whole loop!!!!!!!!!!!!!!!!!!
     {
+waitforit("handleevents");
         if (handleevents()) {   // JBF
             if (quitevent) {
                 KB_KeyDown[sc_Escape] = 1;
@@ -8065,6 +8129,7 @@ if (VOLUMEONE) {
             }
         }
 
+    waitforit("OSD_DispatchQueued");
         OSD_DispatchQueued();
 
         if( ud.recstat == 2 || ud.multimode > 1 || ( ud.show_help == 0 && (ps[myconnectindex].gm&MODE_MENU) != MODE_MENU ) )
@@ -8075,6 +8140,7 @@ if (VOLUMEONE) {
         {
             if( ps[myconnectindex].gm&MODE_EOL )
             {
+    waitforit("closedemowrite");
                 closedemowrite();
 
                 ready2send = 0;
@@ -8091,6 +8157,7 @@ if (VOLUMEONE) {
                     if(ud.multimode < 2)
                     {
 if (!VOLUMEALL) {
+    waitforit("doorders");
                         doorders();
 }
                         ps[myconnectindex].gm = MODE_MENU;
@@ -8109,12 +8176,14 @@ if (!VOLUMEALL) {
             ready2send = 0;
             if(numplayers > 1) ps[myconnectindex].gm = MODE_GAME;
             if (enterlevel(ps[myconnectindex].gm)) {
+    waitforit("backtomenu");
                 backtomenu();
                 goto MAIN_LOOP_RESTART;
             }
             continue;
         }
 
+    waitforit("cheats");
         cheats();
         nonsharedkeys();
 
@@ -8123,7 +8192,9 @@ if (!VOLUMEALL) {
         else
             i = 65536;
 
+    waitforit("displayrooms");
         displayrooms(screenpeek,i);
+    waitforit("displayrest");
         displayrest(i);
 
 //        if( KB_KeyPressed(sc_F) )
@@ -8137,6 +8208,7 @@ if (!VOLUMEALL) {
 
         if(debug_on) caches();
 
+    waitforit("checksync");
         checksync();
 
 if (VOLUMEONE) {
@@ -8144,9 +8216,11 @@ if (VOLUMEONE) {
             rotatesprite((320-50)<<16,9<<16,65536L,0,BETAVERSION,0,0,2+8+16+128,0,0,xdim-1,ydim-1);
 }
 
+    waitforit("nextpage");
         nextpage();
 
     while (!(ps[myconnectindex].gm&MODE_MENU) && ready2send && totalclock >= ototalclock+TICSPERFRAME)
+    waitforit("faketimerhandler");
         faketimerhandler();
     }
 
@@ -8317,6 +8391,7 @@ int playback(void)
     foundemo = 0;
 
     RECHECK:
+    waitforit("RECHECK");
 
     in_menu = ps[myconnectindex].gm&MODE_MENU;
 
@@ -8329,6 +8404,7 @@ int playback(void)
 
     if(foundemo == 0)
     {
+    waitforit("RECHECK 1");
         if(which_demo > 1)
         {
             which_demo = 1;
@@ -8345,6 +8421,7 @@ int playback(void)
     }
     else
     {
+    waitforit("RECHECK 2");
         ud.recstat = 2;
         which_demo++;
         if(which_demo == 10) which_demo = 1;
@@ -8353,6 +8430,7 @@ int playback(void)
 
     if(foundemo == 0 || in_menu || KB_KeyWaiting() || numplayers > 1)
     {
+    waitforit("RECHECK FX_StopAllSounds");
         FX_StopAllSounds();
         clearsoundlocks();
         ps[myconnectindex].gm |= MODE_MENU;
@@ -8361,12 +8439,14 @@ int playback(void)
     ready2send = 0;
     i = 0;
 
+    waitforit("RECHECK KB_FlushKeyboardQueue");
     KB_FlushKeyboardQueue();
 
     k = 0;
 
     while (ud.reccnt > 0 || foundemo == 0)
     {
+    waitforit("RECHECK while");
         if(foundemo) while ( totalclock >= (lockclock+TICSPERFRAME) )
         {
             if ((i == 0) || (i >= RECSYNCBUFSIZ))
@@ -8393,6 +8473,7 @@ int playback(void)
             domovethings();
         }
 
+    waitforit("RECHECK foundemo");
         if(foundemo == 0)
         {
             ready2send = 0;
@@ -8415,6 +8496,7 @@ int playback(void)
 
         if (!(ps[myconnectindex].gm&MODE_MENU) && (KB_KeyPressed(sc_Escape) || BUTTON(gamefunc_Show_Menu)))
         {
+    waitforit("RECHECK KB_ClearKeyDown");
             KB_ClearKeyDown(sc_Escape);
             CONTROL_ClearButton(gamefunc_Show_Menu);
             FX_StopAllSounds();
@@ -8432,6 +8514,7 @@ int playback(void)
         }
         else
         {
+    waitforit("RECHECK menus");
             menus();
             if( ud.multimode > 1 )
             {
@@ -8448,6 +8531,7 @@ int playback(void)
             }
         }
 
+    waitforit("RECHECK operatefta");
         operatefta();
 
         if(ud.last_camsprite != ud.camerasprite)
@@ -8456,10 +8540,12 @@ int playback(void)
             ud.camera_time = totalclock+(TICRATE*2);
         }
 
+    waitforit("RECHECK VOLUMEONE");
         if (VOLUMEONE)
             if( ud.show_help == 0 && (ps[myconnectindex].gm&MODE_MENU) == 0 )
                 rotatesprite((320-50)<<16,9<<16,65536L,0,BETAVERSION,0,0,2+8+16+128,0,0,xdim-1,ydim-1);
 
+    waitforit("RECHECK handleevents");
         handleevents();
         getpackets();
         nextpage();

@@ -659,7 +659,8 @@ void testcallback(unsigned int num)
 {
     short tempi,tempj,tempk;
 
-   if ((int) num == MUSIC_ID) {
+    //printf("tb %d %d %d %d\n", num, (volatile int)Sound[num].numall, (volatile int)Sound[num].num, soundm[num]);
+  if ((int) num == MUSIC_ID) {
       return;
    }
    
@@ -737,12 +738,13 @@ int isspritemakingsound(short i, int num)
 // xyz: 0 - sound(), 1 - xyzsound(), 2 - either
 int issoundplaying(int num, int xyz)
 {
+    //printf("is playing: %d %d %d\n",num, (volatile int)Sound[num].numall, (volatile int)Sound[num].num);
     if (xyz == 0) {
-        return Sound[num].numall - Sound[num].num;
+        return (volatile int)Sound[num].numall - (volatile int)Sound[num].num;
     } else if (xyz == 1) {
-	return Sound[num].num;
+	return (volatile int)Sound[num].num;
     } else {
-        return Sound[num].numall;
+        return (volatile int)Sound[num].numall;
     }
 }
 

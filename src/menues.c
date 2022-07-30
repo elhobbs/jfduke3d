@@ -110,7 +110,7 @@ void readsavenames(void)
     int bv, dummy;
     short i;
     char fn[13];
-    int fil;
+    FILE* fil;
 
     strcpy(fn,"game_.sav");
 
@@ -118,15 +118,17 @@ void readsavenames(void)
     {
         fn[4] = i+'0';
         ud.savegame[i][0] = 0;
-        if ((fil = kopen4load(fn,0)) == -1) continue;
+        //if ((fil = kopen4load(fn,0)) == -1) continue;
+        if ((fil = fopen(fn,"rb")) == 0) continue;
         do
         {
-            if (kdfread(&bv,sizeof(int),1,fil) != 1) break;
+            if (dfread(&bv,sizeof(int),1,fil) != 1) break;
             if (bv != BYTEVERSION) break;
-            if (kdfread(&dummy,sizeof(int),1,fil) != 1) break;
-            if (kdfread(&ud.savegame[i][0],19,1,fil) != 1) ud.savegame[i][0] = 0;
+            if (dfread(&dummy,sizeof(int),1,fil) != 1) break;
+            if (dfread(&ud.savegame[i][0],19,1,fil) != 1) ud.savegame[i][0] = 0;
         } while(0);
-        kclose(fil);
+        //kclose(fil);
+        fclose(fil);
     }
 }
 
@@ -140,37 +142,41 @@ int loadpheader(char spot,struct savehead *saveh)
     strcpy(fn, "game0.sav");
     fn[4] = spot+'0';
 
-    if ((fil = kopen4load(fn,0)) == -1) return(-1);
+    //if ((fil = kopen4load(fn,0)) == -1) return(-1);
+    if ((fil = fopen(fn,"rb")) == 0) return(-1);
 
     walock[TILE_LOADSHOT] = 255;
 
     if (kdfread(&bv,4,1,fil) != 1) goto corrupt;
     if(bv != BYTEVERSION) {
         FTA(114,&ps[myconnectindex]);
-        kclose(fil);
+        //kclose(fil);
+        fclose(fil);
         return 1;
     }
 
-    if (kdfread(&saveh->numplr,sizeof(int32),1,fil) != 1) goto corrupt;
+    if (dfread(&saveh->numplr,sizeof(int32),1,fil) != 1) goto corrupt;
 
-    if (kdfread(saveh->name,19,1,fil) != 1) goto corrupt;
-    if (kdfread(&saveh->volnum,sizeof(int32),1,fil) != 1) goto corrupt;
-    if (kdfread(&saveh->levnum,sizeof(int32),1,fil) != 1) goto corrupt;
-    if (kdfread(&saveh->plrskl,sizeof(int32),1,fil) != 1) goto corrupt;
-    if (kdfread(saveh->boardfn,BMAX_PATH,1,fil) != 1) goto corrupt;
+    if (dfread(saveh->name,19,1,fil) != 1) goto corrupt;
+    if (dfread(&saveh->volnum,sizeof(int32),1,fil) != 1) goto corrupt;
+    if (dfread(&saveh->levnum,sizeof(int32),1,fil) != 1) goto corrupt;
+    if (dfread(&saveh->plrskl,sizeof(int32),1,fil) != 1) goto corrupt;
+    if (dfread(saveh->boardfn,BMAX_PATH,1,fil) != 1) goto corrupt;
 
     if (waloff[TILE_LOADSHOT] == 0) allocache((void **)&waloff[TILE_LOADSHOT],320*200,&walock[TILE_LOADSHOT]);
     tilesizx[TILE_LOADSHOT] = 200; tilesizy[TILE_LOADSHOT] = 320;
-    if (kdfread((char *)waloff[TILE_LOADSHOT],320,200,fil) != 200) goto corrupt;
+    if (dfread((char *)waloff[TILE_LOADSHOT],320,200,fil) != 200) goto corrupt;
 #if USE_POLYMOST && USE_OPENGL
     invalidatetile(TILE_LOADSHOT,0,255);
 #endif
 
-    kclose(fil);
+    //kclose(fil);
+    fclose(fil);
 
     return(0);
 corrupt:
-    kclose(fil);
+    //kclose(fil);
+    fclose(fil);
     return 1;
 }
 
@@ -216,24 +222,27 @@ int loadplayer(signed char spot)
         fn[4] = spot + '0';
     }
 
-    if ((fil = kopen4load(fnptr,0)) == -1) return(-1);
+    //if ((fil = kopen4load(fnptr,0)) == -1) return(-1);
+    if ((fil = fopen(fnptr,"rb")) == 0) return (-1);
 
     ready2send = 0;
 
-    if (kdfread(&bv,4,1,fil) != 1) return -1;
+    if (dfread(&bv,4,1,fil) != 1) return -1;
     if(bv != BYTEVERSION)
     {
         FTA(114,&ps[myconnectindex]);
-        kclose(fil);
+        //kclose(fil);
+        fclose(fil);
         ototalclock = totalclock;
         ready2send = 1;
         return 1;
     }
 
-    if (kdfread(&nump,sizeof(nump),1,fil) != 1) return -1;
+    if (dfread(&nump,sizeof(nump),1,fil) != 1) return -1;
     if(nump != numplayers)
     {
-        kclose(fil);
+        //kclose(fil);
+        fclose(fil);
         ototalclock = totalclock;
         ready2send = 1;
         FTA(124,&ps[myconnectindex]);
@@ -257,17 +266,17 @@ int loadplayer(signed char spot)
     stopmusic();
 
     if(numplayers > 1) {
-        if (kdfread(&buf,19,1,fil) != 1) goto corrupt;
+        if (dfread(&buf,19,1,fil) != 1) goto corrupt;
     } else {
-        if (kdfread(&ud.savegame[spot][0],19,1,fil) != 1) goto corrupt;
+        if (dfread(&ud.savegame[spot][0],19,1,fil) != 1) goto corrupt;
     }
 
     //     music_changed = (music_select != (ud.volume_number*11) + ud.level_number);
 
-    if (kdfread(&ud.volume_number,sizeof(ud.volume_number),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.level_number,sizeof(ud.level_number),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.player_skill,sizeof(ud.player_skill),1,fil) != 1) goto corrupt;
-    if (kdfread(&boardfilename[0],BMAX_PATH,1,fil) != 1) goto corrupt;
+    if (dfread(&ud.volume_number,sizeof(ud.volume_number),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.level_number,sizeof(ud.level_number),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.player_skill,sizeof(ud.player_skill),1,fil) != 1) goto corrupt;
+    if (dfread(&boardfilename[0],BMAX_PATH,1,fil) != 1) goto corrupt;
 
     ud.m_level_number = ud.level_number;
     ud.m_volume_number = ud.volume_number;
@@ -277,103 +286,104 @@ int loadplayer(signed char spot)
     walock[TILE_LOADSHOT] = 1;
     if (waloff[TILE_LOADSHOT] == 0) allocache((void **)&waloff[TILE_LOADSHOT],320*200,&walock[TILE_LOADSHOT]);
     tilesizx[TILE_LOADSHOT] = 200; tilesizy[TILE_LOADSHOT] = 320;
-    if (kdfread((char *)waloff[TILE_LOADSHOT],320,200,fil) != 200) goto corrupt;
+    if (dfread((char *)waloff[TILE_LOADSHOT],320,200,fil) != 200) goto corrupt;
 #if USE_POLYMOST && USE_OPENGL
     invalidatetile(TILE_LOADSHOT,0,255);
 #endif
 
-    if (kdfread(&numwalls,2,1,fil) != 1) goto corrupt;
-    if (kdfread(&wall[0],sizeof(walltype),MAXWALLS,fil) != MAXWALLS) goto corrupt;
-    if (kdfread(&numsectors,2,1,fil) != 1) goto corrupt;
-    if (kdfread(&sector[0],sizeof(sectortype),MAXSECTORS,fil) != MAXSECTORS) goto corrupt;
-    if (kdfread(&sprite[0],sizeof(spritetype),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
-    if (kdfread(&spriteext[0],sizeof(spriteexttype),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
-    if (kdfread(&headspritesect[0],2,MAXSECTORS+1,fil) != MAXSECTORS+1) goto corrupt;
-    if (kdfread(&prevspritesect[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
-    if (kdfread(&nextspritesect[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
-    if (kdfread(&headspritestat[0],2,MAXSTATUS+1,fil) != MAXSTATUS+1) goto corrupt;
-    if (kdfread(&prevspritestat[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
-    if (kdfread(&nextspritestat[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
-    if (kdfread(&numcyclers,sizeof(numcyclers),1,fil) != 1) goto corrupt;
-    if (kdfread(&cyclers[0][0],12,MAXCYCLERS,fil) != MAXCYCLERS) goto corrupt;
-    if (kdfread(ps,sizeof(ps),1,fil) != 1) goto corrupt;
-    if (kdfread(po,sizeof(po),1,fil) != 1) goto corrupt;
-    if (kdfread(&numanimwalls,sizeof(numanimwalls),1,fil) != 1) goto corrupt;
-    if (kdfread(&animwall,sizeof(animwall),1,fil) != 1) goto corrupt;
-    if (kdfread(&msx[0],sizeof(int),sizeof(msx)/sizeof(int),fil) != sizeof(msx)/sizeof(int)) goto corrupt;
-    if (kdfread(&msy[0],sizeof(int),sizeof(msy)/sizeof(int),fil) != sizeof(msy)/sizeof(int)) goto corrupt;
-    if (kdfread((short *)&spriteqloc,sizeof(short),1,fil) != 1) goto corrupt;
-    if (kdfread((short *)&spriteqamount,sizeof(short),1,fil) != 1) goto corrupt;
-    if (kdfread((short *)&spriteq[0],sizeof(short),spriteqamount,fil) != spriteqamount) goto corrupt;
-    if (kdfread(&mirrorcnt,sizeof(short),1,fil) != 1) goto corrupt;
-    if (kdfread(&mirrorwall[0],sizeof(short),64,fil) != 64) goto corrupt;
-    if (kdfread(&mirrorsector[0],sizeof(short),64,fil) != 64) goto corrupt;
-    if (kdfread(&show2dsector[0],sizeof(char),MAXSECTORS>>3,fil) != (MAXSECTORS>>3)) goto corrupt;
-    if (kdfread(&actortype[0],sizeof(char),MAXTILES,fil) != MAXTILES) goto corrupt;
+    if (dfread(&numwalls,2,1,fil) != 1) goto corrupt;
+    if (dfread(&wall[0],sizeof(walltype),MAXWALLS,fil) != MAXWALLS) goto corrupt;
+    if (dfread(&numsectors,2,1,fil) != 1) goto corrupt;
+    if (dfread(&sector[0],sizeof(sectortype),MAXSECTORS,fil) != MAXSECTORS) goto corrupt;
+    if (dfread(&sprite[0],sizeof(spritetype),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+    if (dfread(&spriteext[0],sizeof(spriteexttype),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+    if (dfread(&headspritesect[0],2,MAXSECTORS+1,fil) != MAXSECTORS+1) goto corrupt;
+    if (dfread(&prevspritesect[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+    if (dfread(&nextspritesect[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+    if (dfread(&headspritestat[0],2,MAXSTATUS+1,fil) != MAXSTATUS+1) goto corrupt;
+    if (dfread(&prevspritestat[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+    if (dfread(&nextspritestat[0],2,MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+    if (dfread(&numcyclers,sizeof(numcyclers),1,fil) != 1) goto corrupt;
+    if (dfread(&cyclers[0][0],12,MAXCYCLERS,fil) != MAXCYCLERS) goto corrupt;
+    if (dfread(ps,sizeof(ps),1,fil) != 1) goto corrupt;
+    if (dfread(po,sizeof(po),1,fil) != 1) goto corrupt;
+    if (dfread(&numanimwalls,sizeof(numanimwalls),1,fil) != 1) goto corrupt;
+    if (dfread(&animwall,sizeof(animwall),1,fil) != 1) goto corrupt;
+    if (dfread(&msx[0],sizeof(int),sizeof(msx)/sizeof(int),fil) != sizeof(msx)/sizeof(int)) goto corrupt;
+    if (dfread(&msy[0],sizeof(int),sizeof(msy)/sizeof(int),fil) != sizeof(msy)/sizeof(int)) goto corrupt;
+    if (dfread((short *)&spriteqloc,sizeof(short),1,fil) != 1) goto corrupt;
+    if (dfread((short *)&spriteqamount,sizeof(short),1,fil) != 1) goto corrupt;
+    if (dfread((short *)&spriteq[0],sizeof(short),spriteqamount,fil) != spriteqamount) goto corrupt;
+    if (dfread(&mirrorcnt,sizeof(short),1,fil) != 1) goto corrupt;
+    if (dfread(&mirrorwall[0],sizeof(short),64,fil) != 64) goto corrupt;
+    if (dfread(&mirrorsector[0],sizeof(short),64,fil) != 64) goto corrupt;
+    if (dfread(&show2dsector[0],sizeof(char),MAXSECTORS>>3,fil) != (MAXSECTORS>>3)) goto corrupt;
+    if (dfread(&actortype[0],sizeof(char),MAXTILES,fil) != MAXTILES) goto corrupt;
 
-    if (kdfread(&numclouds,sizeof(numclouds),1,fil) != 1) goto corrupt;
-    if (kdfread(&clouds[0],sizeof(short)<<7,1,fil) != 1) goto corrupt;
-    if (kdfread(&cloudx[0],sizeof(short)<<7,1,fil) != 1) goto corrupt;
-    if (kdfread(&cloudy[0],sizeof(short)<<7,1,fil) != 1) goto corrupt;
+    if (dfread(&numclouds,sizeof(numclouds),1,fil) != 1) goto corrupt;
+    if (dfread(&clouds[0],sizeof(short)<<7,1,fil) != 1) goto corrupt;
+    if (dfread(&cloudx[0],sizeof(short)<<7,1,fil) != 1) goto corrupt;
+    if (dfread(&cloudy[0],sizeof(short)<<7,1,fil) != 1) goto corrupt;
 
-    if (kdfread(&script[0],4,MAXSCRIPTSIZE,fil) != MAXSCRIPTSIZE) goto corrupt;
+    if (dfread(&script[0],4,MAXSCRIPTSIZE,fil) != MAXSCRIPTSIZE) goto corrupt;
 
-    if (kdfread(&ptrbuf[0],4,MAXTILES,fil) != MAXTILES) goto corrupt;
+    if (dfread(&ptrbuf[0],4,MAXTILES,fil) != MAXTILES) goto corrupt;
     for(i=0;i<MAXTILES;i++)
         if(ptrbuf[i])
         {
             actorscrptr[i] = (int *)((intptr_t)&script[0] + ptrbuf[i]);
         }
 
-    if (kdfread(&hittype[0],sizeof(struct weaponhit),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
+    if (dfread(&hittype[0],sizeof(struct weaponhit),MAXSPRITES,fil) != MAXSPRITES) goto corrupt;
 
-    if (kdfread(&lockclock,sizeof(lockclock),1,fil) != 1) goto corrupt;
-    if (kdfread(&pskybits,sizeof(pskybits),1,fil) != 1) goto corrupt;
-    if (kdfread(&pskyoff[0],sizeof(pskyoff[0]),MAXPSKYTILES,fil) != MAXPSKYTILES) goto corrupt;
+    if (dfread(&lockclock,sizeof(lockclock),1,fil) != 1) goto corrupt;
+    if (dfread(&pskybits,sizeof(pskybits),1,fil) != 1) goto corrupt;
+    if (dfread(&pskyoff[0],sizeof(pskyoff[0]),MAXPSKYTILES,fil) != MAXPSKYTILES) goto corrupt;
 
-    if (kdfread(&animatecnt,sizeof(animatecnt),1,fil) != 1) goto corrupt;
-    if (kdfread(&animatesect[0],2,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
-    if (kdfread(&ptrbuf[0],4,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
+    if (dfread(&animatecnt,sizeof(animatecnt),1,fil) != 1) goto corrupt;
+    if (dfread(&animatesect[0],2,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
+    if (dfread(&ptrbuf[0],4,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
     for(i = animatecnt-1;i>=0;i--) animateptr[i] = (int *)((intptr_t)&sector[0] + ptrbuf[i]);
-    if (kdfread(&animategoal[0],4,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
-    if (kdfread(&animatevel[0],4,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
+    if (dfread(&animategoal[0],4,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
+    if (dfread(&animatevel[0],4,MAXANIMATES,fil) != MAXANIMATES) goto corrupt;
 
-    if (kdfread(&earthquaketime,sizeof(earthquaketime),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.from_bonus,sizeof(ud.from_bonus),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.secretlevel,sizeof(ud.secretlevel),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.respawn_monsters,sizeof(ud.respawn_monsters),1,fil) != 1) goto corrupt;
+    if (dfread(&earthquaketime,sizeof(earthquaketime),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.from_bonus,sizeof(ud.from_bonus),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.secretlevel,sizeof(ud.secretlevel),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.respawn_monsters,sizeof(ud.respawn_monsters),1,fil) != 1) goto corrupt;
     ud.m_respawn_monsters = ud.respawn_monsters;
-    if (kdfread(&ud.respawn_items,sizeof(ud.respawn_items),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.respawn_items,sizeof(ud.respawn_items),1,fil) != 1) goto corrupt;
     ud.m_respawn_items = ud.respawn_items;
-    if (kdfread(&ud.respawn_inventory,sizeof(ud.respawn_inventory),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.respawn_inventory,sizeof(ud.respawn_inventory),1,fil) != 1) goto corrupt;
     ud.m_respawn_inventory = ud.respawn_inventory;
 
-    if (kdfread(&ud.god,sizeof(ud.god),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.auto_run,sizeof(ud.auto_run),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.crosshair,sizeof(ud.crosshair),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.monsters_off,sizeof(ud.monsters_off),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.god,sizeof(ud.god),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.auto_run,sizeof(ud.auto_run),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.crosshair,sizeof(ud.crosshair),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.monsters_off,sizeof(ud.monsters_off),1,fil) != 1) goto corrupt;
     ud.m_monsters_off = ud.monsters_off;
-    if (kdfread(&ud.last_level,sizeof(ud.last_level),1,fil) != 1) goto corrupt;
-    if (kdfread(&ud.eog,sizeof(ud.eog),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.last_level,sizeof(ud.last_level),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.eog,sizeof(ud.eog),1,fil) != 1) goto corrupt;
 
-    if (kdfread(&ud.coop,sizeof(ud.coop),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.coop,sizeof(ud.coop),1,fil) != 1) goto corrupt;
     ud.m_coop = ud.coop;
-    if (kdfread(&ud.marker,sizeof(ud.marker),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.marker,sizeof(ud.marker),1,fil) != 1) goto corrupt;
     ud.m_marker = ud.marker;
-    if (kdfread(&ud.ffire,sizeof(ud.ffire),1,fil) != 1) goto corrupt;
+    if (dfread(&ud.ffire,sizeof(ud.ffire),1,fil) != 1) goto corrupt;
     ud.m_ffire = ud.ffire;
 
-    if (kdfread(&camsprite,sizeof(camsprite),1,fil) != 1) goto corrupt;
-    if (kdfread(&connecthead,sizeof(connecthead),1,fil) != 1) goto corrupt;
-    if (kdfread(connectpoint2,sizeof(connectpoint2),1,fil) != 1) goto corrupt;
-    if (kdfread(&numplayersprites,sizeof(numplayersprites),1,fil) != 1) goto corrupt;
-    if (kdfread((short *)&frags[0][0],sizeof(frags),1,fil) != 1) goto corrupt;
+    if (dfread(&camsprite,sizeof(camsprite),1,fil) != 1) goto corrupt;
+    if (dfread(&connecthead,sizeof(connecthead),1,fil) != 1) goto corrupt;
+    if (dfread(connectpoint2,sizeof(connectpoint2),1,fil) != 1) goto corrupt;
+    if (dfread(&numplayersprites,sizeof(numplayersprites),1,fil) != 1) goto corrupt;
+    if (dfread((short *)&frags[0][0],sizeof(frags),1,fil) != 1) goto corrupt;
 
-    if (kdfread(&randomseed,sizeof(randomseed),1,fil) != 1) goto corrupt;
-    if (kdfread(&global_random,sizeof(global_random),1,fil) != 1) goto corrupt;
-    if (kdfread(&parallaxyscale,sizeof(parallaxyscale),1,fil) != 1) goto corrupt;
+    if (dfread(&randomseed,sizeof(randomseed),1,fil) != 1) goto corrupt;
+    if (dfread(&global_random,sizeof(global_random),1,fil) != 1) goto corrupt;
+    if (dfread(&parallaxyscale,sizeof(parallaxyscale),1,fil) != 1) goto corrupt;
 
-     kclose(fil);
+     //kclose(fil);
+     fclose(fil);
 
      if(ps[myconnectindex].over_shoulder_on != 0)
      {
@@ -1084,6 +1094,7 @@ void menus(void)
     if(!(current_menu >= 1000 && current_menu <= 2999 && current_menu >= 300 && current_menu <= 369))
         vscrn();
 
+        waitforit("current_menu");
     switch(current_menu)
     {
         case 25000:
@@ -4000,6 +4011,7 @@ if (VOLUMEALL) {
 
     if( (ps[myconnectindex].gm&MODE_MENU) != MODE_MENU)
     {
+        waitforit("menu after case");
         vscrn();
         cameraclock = totalclock;
         cameradist = 65536L;

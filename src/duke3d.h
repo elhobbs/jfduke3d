@@ -274,7 +274,7 @@ typedef struct
     char *ptr;
     unsigned char lock;
     int  length, num;
-	 int numall;	// total number of this sound played in any way
+	int numall;	// total number of this sound played in any way
 } SAMPLE;
 
 struct animwalltype

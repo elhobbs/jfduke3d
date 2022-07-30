@@ -396,9 +396,9 @@ void animatecamsprite(void)
             OW = ps[screenpeek].newowner;
 
         else if(OW >= 0 && dist(&sprite[ps[screenpeek].i],&sprite[i]) < 2048) {
-            if (waloff[TILE_VIEWSCR] == 0)
+            if (waloff[TILE_VIEWSCR] == 0) {
                 allocatepermanenttile(TILE_VIEWSCR,tilesizx[PN],tilesizy[PN]);
-            else
+            } else
                 walock[TILE_VIEWSCR] = 255;
             xyzmirror(OW,/*PN*/TILE_VIEWSCR);
         }

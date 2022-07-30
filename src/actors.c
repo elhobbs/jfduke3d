@@ -27,7 +27,8 @@ Modifications for JonoF's port by Jonathon Fowler (jf@jonof.id.au)
 
 #include "duke3d.h"
 
-extern char numenvsnds,actor_tog;
+extern int numenvsnds;
+extern char actor_tog;
 
 void updateinterpolations()  //Stick at beginning of domovethings
 {

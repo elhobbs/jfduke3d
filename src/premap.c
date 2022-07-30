@@ -381,22 +381,39 @@ void cacheit(void)
 
 void xyzmirror(short i,short wn)
 {
+    uint64_t ds_time();
+    static uint64_t tms[8];
+    int a = 0;
+
+    tms[a++] = ds_time();
+    printf("camera: %d %d\n",tilesizx[PN],tilesizy[PN]);
     //if (waloff[wn] == 0) loadtile(wn);
     setviewtotile(wn,tilesizy[wn],tilesizx[wn]);
+    tms[a++] = ds_time();
 
     drawrooms(SX,SY,SZ,SA,100+sprite[i].shade,SECT);
+    tms[a++] = ds_time();
     display_mirror = 1; animatesprites(SX,SY,SA,65536L); display_mirror = 0;
+    tms[a++] = ds_time();
     drawmasks();
+    tms[a++] = ds_time();
 
     setviewback();
+    tms[a++] = ds_time();
     squarerotatetile(wn);
+    tms[a++] = ds_time();
 #if USE_POLYMOST && USE_OPENGL
     invalidatetile(wn,-1,255);
 #endif
+    for( int j=1;j<a;j++) {
+        printf(" %d: %8d\n", i, (int)(tms[j] - tms[j-1]));
+    }
+    printf("=== %8d\n", (int)(tms[a-1] - tms[0]));
 }
 
 void vscrn(void)
 {
+        waitforit("vscrn");
 #define ROUND16(f) (((f)>>16)+(((f)&0x8000)>>15))
      int ss, x1, x2, y1, y2;
      extern int sbarscale;
@@ -1019,37 +1036,53 @@ void newgame(char vn,char ln,char sk)
     struct player_struct *p = &ps[0];
     short i;
 
-    if(globalskillsound >= 0)
-        while(issoundplaying(globalskillsound, 0)) { handleevents(); getpackets(); }
+    waitforit("newgame");
+    if(globalskillsound >= 0) {
+        while(issoundplaying(globalskillsound, 0)) { 
+            swiWaitForVBlank();
+            //waitforit("newgame handleevents");
+            handleevents();
+            //waitforit("newgame getpackets");
+            getpackets(); 
+        }
+    }
     globalskillsound = -1;
 
+    waitforit("newgame waitforeverybody");
     waitforeverybody();
     ready2send = 0;
 
+    waitforit("newgame dobonus");
     if( ud.m_recstat != 2 && ud.last_level >= 0 && ud.multimode > 1 && ud.coop != 1)
         dobonus(1);
 
     if( ln == 0 && vn == 3 && ud.multimode < 2 && ud.lockout == 0)
     {
+    waitforit("newgame playmusic");
         playmusic(&env_music_fn[1][0]);
 
+    waitforit("newgame flushperms");
         flushperms();
         setview(0,0,xdim-1,ydim-1);
         clearallviews(0L);
         nextpage();
 
+    waitforit("newgame vol41a.anm");
         playanm("vol41a.anm",6);
         clearallviews(0L);
         nextpage();
 
+    waitforit("newgame vol42a.anm");
         playanm("vol42a.anm",7);
         playanm("vol43a.anm",9);
         clearallviews(0L);
         nextpage();
 
+    waitforit("newgame FX_StopAllSounds");
         FX_StopAllSounds();
     }
 
+    waitforit("newgame");
     show_shareware = 26*34;
 
     ud.level_number =   ln;
@@ -1090,6 +1123,7 @@ void newgame(char vn,char ln,char sk)
         connecthead = 0;
         connectpoint2[0] = -1;
     }
+    waitforit("newgame done");
 }
 
 
@@ -1420,7 +1454,7 @@ int enterlevel(unsigned char g)
 {
     short i,j;
     int l;
-    char levname[BMAX_PATH];
+    static char levname[BMAX_PATH];
 
     if( (g&MODE_DEMO) != MODE_DEMO ) ud.recstat = ud.m_recstat;
     ud.respawn_monsters = ud.m_respawn_monsters;

@@ -194,10 +194,17 @@ void CONFIG_SetDefaults( void )
 
     FXDevice = 0;
     MusicDevice = 0;
+    #if defined __NDS__
+    NumVoices = 8;
+    NumChannels = 1;
+    NumBits = 8;
+    MixRate = 11025;
+    #else
     NumVoices = 16;
     NumChannels = 2;
     NumBits = 16;
     MixRate = 44100;
+    #endif
     SoundToggle = 1;
     MusicToggle = 1;
     VoiceToggle = 1;
