@@ -51,18 +51,18 @@ ENGINE_SRC = \
 	$(ENGINEROOT)/src/smalltextfont.c
 
 AUDIOLIB_SRC = \
-	$(AUDIOLIBROOT)/src\drivers.c \
-	$(AUDIOLIBROOT)/src\fx_man.c \
-	$(AUDIOLIBROOT)/src\cd.c \
-	$(AUDIOLIBROOT)/src\multivoc.c \
-	$(AUDIOLIBROOT)/src\mix.c \
-	$(AUDIOLIBROOT)/src\mixst.c \
-	$(AUDIOLIBROOT)/src\pitch.c \
-	$(AUDIOLIBROOT)/src\vorbis.c \
-	$(AUDIOLIBROOT)/src\music.c \
-	$(AUDIOLIBROOT)/src\midi.c \
-	$(AUDIOLIBROOT)/src\driver_nosound.c \
-	$(AUDIOLIBROOT)/src\asssys.c
+	$(AUDIOLIBROOT)/src/drivers.c \
+	$(AUDIOLIBROOT)/src/fx_man.c \
+	$(AUDIOLIBROOT)/src/cd.c \
+	$(AUDIOLIBROOT)/src/multivoc.c \
+	$(AUDIOLIBROOT)/src/mix.c \
+	$(AUDIOLIBROOT)/src/mixst.c \
+	$(AUDIOLIBROOT)/src/pitch.c \
+	$(AUDIOLIBROOT)/src/vorbis.c \
+	$(AUDIOLIBROOT)/src/music.c \
+	$(AUDIOLIBROOT)/src/midi.c \
+	$(AUDIOLIBROOT)/src/driver_nosound.c \
+	$(AUDIOLIBROOT)/src/asssys.c
 
 
 JMACT_SRC= \
