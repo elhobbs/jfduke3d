@@ -24,6 +24,10 @@ int inputdevices=0;
 
 char keystatus[256];
 void (*keypresscallback)(int,int) = 0;
+int keyasciififoplc, keyasciififoend;
+unsigned char keyasciififo[KEYFIFOSIZ];
+static char *keyNames[256];
+
 
 int mousex=0,mousey=0,mouseb=0;
 static char mouseacquired=0,moustat=0;
@@ -354,7 +358,7 @@ int setpalette(int UNUSED(start), int UNUSED(num), unsigned char * UNUSED(dapal)
 int setgamma(float gamma)
 {
 	//printf("setgamma\n");
-	return 0;
+	return 1;
 }
 
 //
@@ -605,8 +609,8 @@ static ds_key_t ds_keys[32] = {
 };
 
 static ds_key_t ds_alt_keys[32] = {
-	{ KEY_UP, 0xc8 },
-	{ KEY_DOWN, 0xd0 },
+	{ KEY_UP, 0x1a },
+	{ KEY_DOWN, 0x1b },
 	{ KEY_LEFT, 0x27 },
 	{ KEY_RIGHT, 0x28 },
 	{ KEY_L, 0xd1 },
@@ -625,11 +629,23 @@ void CheckDSKey(unsigned int keys_down,unsigned int last_down, unsigned int ds_k
 {
 	if ((keys_down & ds_key) == ds_key && (last_down & ds_key) == 0)
 	{
+		if (OSD_HandleChar(key)) {
+			if (((keyasciififoend+1)&(KEYFIFOSIZ-1)) != keyasciififoplc) {
+				keyasciififo[keyasciififoend] = key;
+				keyasciififoend = ((keyasciififoend+1)&(KEYFIFOSIZ-1));
+			}
+		}
 		SetKey(key, 1);
+		if (keypresscallback) {
+			keypresscallback(key, 1);
+		}
 	}
 	else if ((keys_down & ds_key) == 0 && (last_down & ds_key) == ds_key)
 	{
 		SetKey(key, 0);
+		if (keypresscallback) {
+			keypresscallback(key, 0);
+		}
 	}
 }
 
@@ -671,6 +687,10 @@ int initinput(void)
 	memset(keystatus, 0, sizeof(keystatus));
 	moustat=1;
 	mouseacquired = 0;
+
+	for(int i=0;i<256;i++) {
+		keyNames[i] = KB_ScanCodeToString(i);
+	}
 	return 0;
 }
 
@@ -732,18 +752,21 @@ void setkeypresscallback(void (*callback)(int, int)) {
 
 unsigned char bgetchar(void)
 {
-	unsigned char c = 0;
+	unsigned char c;
+	if (keyasciififoplc == keyasciififoend) return 0;
+	c = keyasciififo[keyasciififoplc];
+	keyasciififoplc = ((keyasciififoplc+1)&(KEYFIFOSIZ-1));
 	return c;
 }
 
 int bkbhit(void)
 {
-	return 0;
+	return (keyasciififoplc != keyasciififoend);
 }
 
 void bflushchars(void)
 {
-
+	keyasciififoplc = keyasciififoend = 0;
 }
 
 uint64_t ds_time()
@@ -842,7 +865,7 @@ const char *getjoyname(int what, int num) {
 const char *getkeyname(int num)
 {
 	if ((unsigned)num >= 256) return NULL;
-	return NULL;//keynames[num];
+	return keyNames[num];
 }
 
 
