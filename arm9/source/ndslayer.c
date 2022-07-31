@@ -35,6 +35,7 @@ char quitevent=0, appactive=1;
 
 char joynumaxes=0, joynumbuttons=0;
 int joyaxis[2], joyb=0;
+void (*joypresscallback)(int,int) = 0;
 
 static uint64_t timerfreq=0;
 static uint32_t timerlastsample=0;
@@ -649,6 +650,99 @@ void CheckDSKey(unsigned int keys_down,unsigned int last_down, unsigned int ds_k
 	}
 }
 
+/* conflicts with nds types - so copied here */
+
+typedef enum
+   {
+   joybutton_A,
+   joybutton_B,
+   joybutton_X,
+   joybutton_Y,
+   joybutton_Back,
+   joybutton_Guide,
+   joybutton_Start,
+   joybutton_LeftStick,
+   joybutton_RightStick,
+   joybutton_LeftShoulder,
+   joybutton_RightShoulder,
+   joybutton_DpadUp,
+   joybutton_DpadDown,
+   joybutton_DpadLeft,
+   joybutton_DpadRight
+   } joybutton;
+
+static uint32_t ds_button_map[12] = {
+	joybutton_A,
+	joybutton_B,
+	joybutton_Back,
+	joybutton_Start,
+	joybutton_DpadRight,
+	joybutton_DpadLeft,
+	joybutton_DpadUp,
+	joybutton_DpadDown,
+	joybutton_RightShoulder,
+	joybutton_LeftShoulder,
+	joybutton_X,
+	joybutton_Y
+};
+
+const char *getjoyname(int what, int num) {
+	static const char * buttonnames[32] = {
+	/* 00 */"A",
+	/* 01 */"B",
+	/* 02 */"X",
+	/* 03 */"Y",
+	/* 04 */"Select",
+	/* 05 */"UNUSED",
+	/* 06 */"Start",
+	/* 07 */"L-Stick",
+	/* 08 */"R-Stick",
+	/* 09 */"L-Shoulder",
+	/* 10 */"R-Shoulder",
+	/* 11 */"DPad Up",
+	/* 12 */"DPad Down",
+	/* 13 */"DPad Left",
+	/* 14 */"DPad Right",
+	/* 15 */"Alt-A",
+	/* 16 */"Alt-B",
+	/* 17 */"Alt-X",
+	/* 18 */"Alt-Y",
+	/* 19 */"Alt-Select",
+	/* 20 */"Alt-UNUSED",
+	/* 21 */"Alt-Start",
+	/* 22 */"Alt-L-Thumb",
+	/* 23 */"Alt-R-Thumb",
+	/* 24 */"Alt-L-Shoulder",
+	/* 25 */"Alt-R-Shoulder",
+	/* 26 */"Alt-DPad Up",
+	/* 27 */"Alt-DPad Down",
+	/* 28 */"Alt-DPad Left",
+	/* 29 */"Alt-DPad Right"
+	};
+	switch(what) {
+		case 1: // button
+			if ((unsigned)num > (unsigned)32) return NULL;
+			return buttonnames[num];
+
+		default:
+			return NULL;
+	}
+}
+
+static void updatejoystick(unsigned int dsKeys) {
+	joyb = 0;
+	int alt = 0;
+	if((dsKeys & KEY_X) != 0) {
+		alt = 15;
+	}
+	for(int i=0;i<12;i++) {
+		if((dsKeys & (1L<<i)) != 0) {
+			joyb |= (1L << (ds_button_map[i] + alt));
+		}
+	}
+	//printf("joyb: %08x\n", joyb);
+}
+
 int handleevents(void) {
 
 	ds_key_t *ds_key;
@@ -657,7 +751,7 @@ int handleevents(void) {
 	unsigned int ds_alt_down = 0;
 
 	//in alt keys
-	if((dsKeys & KEY_X) ==  KEY_X) {
+	/* if((dsKeys & KEY_X) ==  KEY_X) {
 		ds_keys_down = 0;
 		ds_alt_down = dsKeys;
 	}
@@ -672,10 +766,13 @@ int handleevents(void) {
 		if(ds_key->key) {
 			CheckDSKey(ds_keys_down, ds_keys_down_last, ds_key->ds_key, ds_key->key);
 		}
-	}
+	} */
 	
 	ds_keys_down_last = ds_keys_down;
 	ds_alt_down_last = ds_alt_down;
+
+
+	updatejoystick(dsKeys);
 	
 	sampletimer();
 	startwin_idle(NULL);
@@ -687,6 +784,10 @@ int initinput(void)
 	memset(keystatus, 0, sizeof(keystatus));
 	moustat=1;
 	mouseacquired = 0;
+
+	inputdevices |= 4;
+	joynumbuttons = 32;
+	joynumaxes = 0;
 
 	for(int i=0;i<256;i++) {
 		keyNames[i] = KB_ScanCodeToString(i);
@@ -744,10 +845,31 @@ void readmousebstatus(int *b)
 
 void releaseallbuttons(void)
 {
+	int i;
+	for (i=0;i<256;i++) {
+		//if (!keystatus[i]) continue;
+		//if (OSD_HandleKey(i, 0) != 0) {
+			OSD_HandleKey(i, 0);
+			SetKey(i, 0);
+			if (keypresscallback) keypresscallback(i, 0);
+		//}
+	}
+
+	mouseb = 0;
+
+	if (joypresscallback) {
+		for (i=0;i<32;i++)
+			if (joyb & (1<<i)) joypresscallback(i+1, 0);
+	}
+	joyb = 0;
 }
 
 void setkeypresscallback(void (*callback)(int, int)) {
     keypresscallback = callback;
+}
+
+void setjoypresscallback(void (*callback)(int, int)) {
+	joypresscallback = callback;
 }
 
 unsigned char bgetchar(void)
@@ -856,10 +978,6 @@ void debugprintf(const char *f, ...)
 	va_end(va);
 #endif
 	(void)f;
-}
-
-const char *getjoyname(int what, int num) {
-    return NULL;
 }
 
 const char *getkeyname(int num)

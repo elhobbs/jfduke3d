@@ -2545,7 +2545,7 @@ if (PLUTOPAK) {
         // the top of our list
         m = probey - 6;
         if (m < 0) m = 0;
-        else if (m + 13 >= NUMGAMEFUNCTIONS) m = NUMGAMEFUNCTIONS-13;
+        else if (m + 11 >= NUMGAMEFUNCTIONS) m = NUMGAMEFUNCTIONS-11;
         
         if (probey == gamefunc_Show_Console) currentlist = 0;
         else if (uinfo.dir == dir_West || uinfo.dir == dir_East || KB_KeyPressed( sc_Tab )) {
@@ -2559,25 +2559,25 @@ if (PLUTOPAK) {
             KB_ClearKeyDown( sc_Delete );
         }
         
-        for (l=0; l < min(13,NUMGAMEFUNCTIONS); l++) {
+        for (l=0; l < min(11,NUMGAMEFUNCTIONS); l++) {
             const char *p = CONFIG_FunctionNumToName(m+l);
             if (!p) continue;
 
             strcpy(buf, p);
             for (i=0;buf[i];i++) if (buf[i]=='_') buf[i] = ' ';
-            minitextshade(70,30+l*8,buf,(m+l == probey)?0:16,0,10+16);
+            gametextpal(40,30+l*8,buf,(m+l == probey)?0:16,0);//,10+16);
 
             //strcpy(buf, KB_ScanCodeToString(KeyboardKeys[m+l][0]));
             strcpy(buf, getkeyname(KeyboardKeys[m+l][0]));
             if (!buf[0]) strcpy(buf, "  -");
-            minitextshade(70+100,30+l*8,buf,
-                    (m+l == probey && !currentlist?0:16),2,10+16);
+            gametextpal(40+140,30+l*8,buf,
+                    (m+l == probey && !currentlist?0:16),2);//,10+16);
 
             //strcpy(buf, KB_ScanCodeToString(KeyboardKeys[m+l][1]));
             strcpy(buf, getkeyname(KeyboardKeys[m+l][1]));
             if (!buf[0]) strcpy(buf, "  -");
-            minitextshade(70+120+34,30+l*8,buf,
-                    (m+l == probey && currentlist?0:16),2,10+16);
+            gametextpal(40+160+34,30+l*8,buf,
+                    (m+l == probey && currentlist?0:16),2);//,10+16);
         }
 
         gametext(160,140,"UP/DOWN = SELECT ACTION",0,2+8+16);
@@ -2784,16 +2784,16 @@ if (PLUTOPAK) {
         
         m = probey - 6;
         if (m < 0) m = 0;
-        else if (m + 13 >= NUMGAMEFUNCTIONS) m = NUMGAMEFUNCTIONS-13;
+        else if (m + 11 >= NUMGAMEFUNCTIONS) m = NUMGAMEFUNCTIONS-11;
 
-        for (l=0; l < min(13,NUMGAMEFUNCTIONS); l++) {
+        for (l=0; l < min(11,NUMGAMEFUNCTIONS); l++) {
             if (l+m == NUMGAMEFUNCTIONS-1)
                 strcpy(buf, "  -NONE-");
             else
                 strcpy(buf, CONFIG_FunctionNumToName(m+l));
 
             for (i=0;buf[i];i++) if (buf[i]=='_') buf[i] = ' ';
-            minitextshade(100,46+l*8,buf,(m+l == probey)?0:16,0,10+16);
+            gametextpal(100,46+l*9,buf,(m+l == probey)?0:16,0);//,10+16);
         }
 
         gametext(320>>1,154,"PRESS \"ESCAPE\" TO CANCEL",0,2+8+16);
@@ -2993,24 +2993,24 @@ if (PLUTOPAK) {
         }
 
         // the top of our list
-        if (c < 13) m = 0;
+        if (c < 12) m = 0;
         else {
             m = probey - 6;
             if (m < 0) m = 0;
-            else if (m + 13 >= c) m = c-13;
+            else if (m + 12 >= c) m = c-12;
         }
-        
-        for (l=0; l<min(13,c); l++) {
-			sprintf(buf, "%s%s", ((l+m)&1)?"Double ":"", getjoyname(1,(l+m)>>1));
+
+        for (l=0; l<min(12,c); l++) {
+			sprintf(buf, "%d %s%s", (l+m)>>1, ((l+m)&1)?"Double ":"", getjoyname(1,(l+m)>>1));
 			x = JoystickFunctions[(l+m)>>1][(l+m)&1];
-            minitextshade(80-4,33+l*8,buf,(m+l == probey)?0:16,0,10+16);
+            gametextpal(10-4,33+l*9,buf,(m+l == probey)?0:16,0);//,10+16);
 
             if (x == -1)
-                minitextshade(176,33+l*8,"  -NONE-",(m+l==probey)?0:16,0,10+16);
+                gametextpal(186,33+l*9,"  -NONE-",(m+l==probey)?0:16,0);//,10+16);
             else {
                 strcpy(buf, CONFIG_FunctionNumToName(x));
                 for (i=0;buf[i];i++) if (buf[i]=='_') buf[i] = ' ';
-                minitextshade(176,33+l*8,buf,(m+l==probey)?0:16,0,10+16);
+                gametextpal(186,33+l*9,buf,(m+l==probey)?0:16,0);//,10+16);
             }
         }
         
