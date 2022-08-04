@@ -51,6 +51,9 @@ static u16 d_8to16table[256];
 static uint8_t* surface = 0;
 
 uint64_t ds_time();
+static void keyboard_draw();
+static void keyboard_input(uint32_t keys);
+
 
 void nds_init() {
 	int dswidth = 320;
@@ -95,6 +98,9 @@ void nds_init() {
 	BG_PALETTE_SUB[0] = 0;
 	BG_PALETTE_SUB[1] = RGB15(31,31,31);//by default font will be rendered with color 255
 	BG_PALETTE_SUB[255] = RGB15(31,31,31);//by default font will be rendered with color 255
+	BG_PALETTE_SUB[2] = RGB15(0,0,0);//by default font will be rendered with color 255
+	BG_PALETTE_SUB[3] = RGB15(25,25,25);//by default font will be rendered with color 255
+	BG_PALETTE_SUB[4] = RGB15(15,15,215);//by default font will be rendered with color 255
 
 	/*int amulscale16(int x, int y);
 	int x = mulscale16((8191L<<16),(8191L<<16));
@@ -439,6 +445,7 @@ void showframe(void)
 	//swiWaitForVBlank();
 #endif
 	copy_buffer(surface,frameplace);
+	keyboard_draw();
 }
 
 void wm_setapptitle(const char *name)
@@ -773,6 +780,8 @@ int handleevents(void) {
 
 
 	updatejoystick(dsKeys);
+
+	keyboard_input(dsKeys);
 	
 	sampletimer();
 	startwin_idle(NULL);
@@ -1019,4 +1028,395 @@ int nds_mkdir(char *path, int unused) {
     free(cw);
     free(_path);
     return ret;
+}
+
+typedef struct {
+	int x, y;
+	int type;
+	char *text, *shift_text;
+} sregion_t;
+
+#define KEY_TAB 0x0f
+#define KEY_CAPS 0x3a
+#define KEY_ENTER 0x1c
+#define KEY_SHIFT 0x2a
+#define KEY_CONTROL 0x1d
+#define KEY_ALT 0x38
+#define KEY_SPACE 0x39
+#define KEY_UP 0xc8
+#define KEY_DOWN 0xd0
+#define KEY_LEFT 0xcb
+#define KEY_RIGHT 0xcd
+
+
+#define KEY_WIDTH(_n) (8*(_n)+3)
+
+#define XSTR(_a) STR(__a)
+#define STR(__a) #__a
+
+static sregion_t key_array[] = {
+	{
+		0, 0, 
+		0, 
+		"~1234567890-=",
+		"`!@#$%^&*()_+"
+	},
+	{
+		13*16, 0, 
+		0xe, 
+		"Bksp",
+		"Bksp"
+	},
+	{
+		0, 1*16, 
+		KEY_TAB, 
+		"Tab",
+		"Tab"
+	},
+	{
+		KEY_WIDTH(3)+1, 1*16, 
+		0, 
+		"qwertyuiop[]\\",
+		"QWERTYUIOP{}|"
+	},
+	{
+		0, 2*16, 
+		KEY_CAPS, 
+		"CAPS",
+		"CAPS"
+	},
+	{
+		KEY_WIDTH(4)+1, 2*16, 
+		0, 
+		"asdfghjkl;'",
+		"ASDFGHJKL:\""
+	},
+	{
+		KEY_WIDTH(4)+1 + (11*16), 2*16, 
+		KEY_ENTER, 
+		"Enter",
+		"Enter"
+	},
+	{
+		0, 3*16, 
+		KEY_SHIFT, 
+		"Shift",
+		"Shift"
+	},
+	{
+		256 - 2*16, 3*16, 
+		0, 
+		"\xc8",
+		"\xc8"
+	},
+	{
+		KEY_WIDTH(5) + 1, 3*16,
+		0, 
+		"zxcvbnm,./",
+		"ZXCVBNM<>?"
+	},
+	{
+		0, 4*16, 
+		KEY_CONTROL, 
+		"Ctrl",
+		"Ctrl"
+	},
+	{
+		KEY_WIDTH(4) + 1, 4*16, 
+		KEY_ALT, 
+		"Alt",
+		"Alt"
+	},
+	{
+		KEY_WIDTH(4) + 1 + KEY_WIDTH(3) + 1, 4*16, 
+		KEY_SPACE, 
+		"     SPACE     ",
+		"     SPACE     "
+	},
+	{
+		256 - 3*16, 4*16, 
+		0, 
+		"\xcb\xd0\xcd",
+		"\xcb\xd0\xcd"
+	}
+};
+
+uint8_t key_arrows[4][8] = {
+	{ 0x00, 0x10, 0x38, 0x7C, 0x10, 0x10, 0x10, 0x00 }, //up
+	{ 0x00, 0x10, 0x10, 0x10, 0x7C, 0x38, 0x10, 0x00 }, //down
+	{ 0x00, 0x00, 0x08, 0x0C, 0x7E, 0x0C, 0x08, 0x00 }, //left
+	{ 0x00, 0x00, 0x10, 0x30, 0x7E, 0x30, 0x10, 0x00 } //right
+};
+
+#include "font8x8_basic.h"
+
+static int key_array_count = sizeof(key_array)/sizeof(sregion_t);
+static uint8_t *bottom_screen = 0;
+#define KEY_COLOR 3
+#define KEY_COLOR_PRESS 4
+#define BACKGROUND_COLOR 2
+
+static sregion_t *key_touching = 0;
+static int key_touching_position = 0;
+
+static sregion_t *key_touching_last = 0;
+static int key_touching_position_last = 0;
+
+static int region_to_key(sregion_t *region, int position) {
+	if(region == 0) {
+		return 0;
+	}
+	if(region->type == 0) {
+		return region->text[position];
+	}
+	return region->type;
+}
+
+static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t c);
+
+static void keyboard_input(uint32_t keys) {
+	touchPosition	touch  = { 0,0,0,0 };
+	int x, y, i, len;
+	int shift = 0;
+	sregion_t *touching = 0;
+	int touching_position = 0;
+
+	if((keys & KEY_TOUCH) != 0) {
+		touchRead(&touch);
+		x = touch.px;
+		y = touch.py;
+
+		//printf("touching: %d %d\n",x,y);
+
+		//only look for first touch
+		if(key_touching == 0) {
+			for(i=0;i<key_array_count;i++) {
+				sregion_t *region = &key_array[i];
+				if(y < region->y || y >= (region->y+16))
+				{
+					continue;
+				}
+				if(x < region->x) {
+					continue;
+				}
+				char *text = shift ? region->shift_text : region->text;
+				len = strlen(text);
+				int width = region->type == 0 ? (len*16) : KEY_WIDTH(len);
+				if(x > (region->x + width)) {
+					//printf("skip: %s %d %d\n", region->x, width, text);
+					continue;
+				}
+				if(region->type == 0) {
+					touching_position = (x - region->x)/16;
+				} else {
+					touching_position = 0;
+				}
+				touching = region;
+				//printf("region: %d %d %d %s\n", region->x, region->y, len, region->text);
+				break;
+			}
+		} else {
+			touching = key_touching;
+			touching_position = key_touching_position;
+		}
+	}
+	//saved the last value
+	key_touching_last = key_touching;
+	key_touching_position_last = key_touching_position;
+	//save currently touching
+	key_touching = touching;
+	key_touching_position = touching_position;
+	if(key_touching != key_touching_last || key_touching_position != key_touching_position_last) {
+		if(key_touching_last) {
+			//send a key uo event for the last key
+			int key =region_to_key(key_touching_last, key_touching_position_last);
+			//printf("key up: %d %02x\n", key, key);
+			SetKey(key, 0);
+			if (keypresscallback) {
+				keypresscallback(key, 0);
+			}
+			key_draw_pressed(key_touching_last, key_touching_position_last, KEY_COLOR);
+		}
+		if(key_touching) {
+			int key =region_to_key(key_touching, key_touching_position);
+			//printf("key down: %d %02x %d\n", key, key, key_touching_position);
+			//send a key down event for the current key
+			if (OSD_HandleChar(key)) {
+				if (((keyasciififoend+1)&(KEYFIFOSIZ-1)) != keyasciififoplc) {
+					keyasciififo[keyasciififoend] = key;
+					keyasciififoend = ((keyasciififoend+1)&(KEYFIFOSIZ-1));
+				}
+			}
+			SetKey(key, 1);
+			if (keypresscallback) {
+				keypresscallback(key, 1);
+			}
+			key_draw_pressed(key_touching, key_touching_position, KEY_COLOR_PRESS);
+		}
+	}
+}
+
+static void bitmap_draw(uint8_t *bitmap, uint8_t c, uint8_t *line) {
+	for (int xx = 0; xx < 8; xx++) {
+		for (int yy = 0; yy < 8; yy++) {
+			int set = bitmap[xx] & 1 << yy;
+			line[yy] = set ? BACKGROUND_COLOR : c;
+		}
+		line += 256;
+	}
+}
+
+static draw_arrow(int num, uint8_t c, uint8_t *line) {
+	uint8_t *bitmap = key_arrows[num];
+	bitmap_draw(bitmap, c, line);
+}
+
+static void key_draw(int x, int y, char *text, int width, uint8_t c) {
+	uint8_t *buf = &bottom_screen[x];
+	uint8_t *line = buf + (256 * y);
+	memset(line + 1, c, width - 2);
+	line += 256;
+	for(int j=0;j<13;j++) {
+		memset(line, c, width - 0);
+		line += 256;
+	}
+	memset(line + 1, c, width - 2);
+	line += 256;
+
+	while(*text) {	
+		uint8_t *bitmap = font8x8_basic[*text];
+		line = buf + (256 * (y + 5)) + 2;
+		switch(*text) {
+			case KEY_UP:
+				draw_arrow(0, c, line);
+				break;
+			case KEY_DOWN:
+				draw_arrow(1, c, line);
+				break;
+			case KEY_LEFT:
+				draw_arrow(2, c, line);
+				break;
+			case KEY_RIGHT:
+				draw_arrow(3, c, line);
+				break;
+			default:
+				bitmap_draw(bitmap, c, line);
+				break;
+		}
+
+		if(width == 15) {
+			break;
+		}
+		text++;
+		buf += 8;
+	}
+}
+
+static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t c) {
+	int x = touching->x;
+	int y = touching->y;
+	uint8_t *text = touching->text;
+	int len = strlen(text);
+	int width = 15;
+	uint8_t _text[2] = {0,0};
+	if(touching->type == 0) {
+		text += touching_position;
+		_text[0] = *text;
+		text = _text;
+		x += (touching_position * 16);
+	} else {
+		width = KEY_WIDTH(len);
+	}
+
+	uint8_t *buf = &bottom_screen[x];
+	uint8_t *line = buf + (256 * y);
+	
+	memset(line + 1, c, width - 2);
+	line += 256;
+	for(int j=0;j<13;j++) {
+		memset(line, c, width - 0);
+		line += 256;
+	}
+	memset(line + 1, c, width - 2);
+	line += 256;
+
+	while(*text) {	
+		uint8_t *bitmap = font8x8_basic[*text];
+		line = buf + (256 * (y + 5)) + 2;
+		switch(*text) {
+			case KEY_UP:
+				draw_arrow(0, c, line);
+				break;
+			case KEY_DOWN:
+				draw_arrow(1, c, line);
+				break;
+			case KEY_LEFT:
+				draw_arrow(2, c, line);
+				break;
+			case KEY_RIGHT:
+				draw_arrow(3, c, line);
+				break;
+			default:
+				bitmap_draw(bitmap, c, line);
+				break;
+		}
+
+		if(width == 15) {
+			break;
+		}
+		text++;
+		buf += 8;
+	}
+}
+
+static void region_draw(sregion_t *region, int shift) {
+	int x = region->x;
+	int y = region->y;
+	char *text = shift ? region->shift_text : region->text;
+	int len = strlen(text);
+	
+	if(y < 0 || (y+16) >= 192) {
+		return;
+	}
+
+	switch(region->type) {
+	case KEY_UP:
+	case KEY_DOWN:
+	case KEY_LEFT:
+	case KEY_RIGHT:
+		len = 1;
+	case 0:
+		for(int i = 0;i < len;i++) {
+			key_draw(x, y, &text[i],15,KEY_COLOR);
+			x += 16;
+		}
+		break;
+	default:
+		key_draw(x, y, text, KEY_WIDTH(len), KEY_COLOR);
+		break;
+	}
+}
+static int keyboard_dirty = 1;
+static void keyboard_draw() {
+
+	uint16_t *dest16 = (uint16_t*)bgGetGfxPtr(ds_bg_sub);
+
+	if(bottom_screen == 0) {
+		bottom_screen = malloc(256 * 192);
+		if(bottom_screen == 0) {
+			printf("bottom_screen == 0");
+			exit(-1);
+		}
+		memset(bottom_screen,BACKGROUND_COLOR,256 * 192/2);
+	}
+
+	if(keyboard_dirty) {
+		for(int i=0;i < key_array_count; i++) {
+			region_draw(&key_array[i], 0);
+		}
+	}
+
+	while(DMA_CR(1) & DMA_BUSY);
+	dmaCopyWordsAsynch(1, bottom_screen, dest16, 256 * 192 );
+	keyboard_dirty = 0;
 }
