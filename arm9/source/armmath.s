@@ -1,7 +1,8 @@
 @hexenarm.s
 @rww - custom arm routines for hexends
 
-	.section .rodata
+	#.section .rodata
+	.section .itcm,"ax",%progbits
 
 	.align	4
 	.arm

@@ -53,7 +53,7 @@ static uint8_t* surface = 0;
 uint64_t ds_time();
 static void keyboard_draw();
 static void keyboard_input(uint32_t keys);
-
+static void keyboard_init();
 
 void nds_init() {
 	int dswidth = 320;
@@ -120,6 +120,8 @@ void nds_init() {
 	}
 	swiWaitForVBlank();
 	swiWaitForVBlank();
+
+	keyboard_init();
 }
 
 int main(int argc, char *argv[]) {
@@ -837,6 +839,13 @@ void grabmouse(int a) {
 void readmousexy(int *x, int *y)
 {
 	if (!mouseacquired || !appactive || !moustat) { *x = *y = 0; return; }
+	
+	touchPosition touch;
+	touchRead(&touch);
+	
+	mousex = touch.px;
+	mousey = touch.py;
+	
 	*x = mousex;
 	*y = mousey;
 	mousex = mousey = 0;
@@ -1031,115 +1040,212 @@ int nds_mkdir(char *path, int unused) {
 }
 
 typedef struct {
-	int x, y;
+	int x, y, length;
 	int type;
-	char *text, *shift_text;
+	//char *text, *shift_text;
+	uint8_t sc_code[20];
 } sregion_t;
-
-#define KEY_TAB 0x0f
-#define KEY_CAPS 0x3a
-#define KEY_ENTER 0x1c
-#define KEY_SHIFT 0x2a
-#define KEY_CONTROL 0x1d
-#define KEY_ALT 0x38
-#define KEY_SPACE 0x39
-#define KEY_UP 0xc8
-#define KEY_DOWN 0xd0
-#define KEY_LEFT 0xcb
-#define KEY_RIGHT 0xcd
-
 
 #define KEY_WIDTH(_n) (8*(_n)+3)
 
 #define XSTR(_a) STR(__a)
 #define STR(__a) #__a
 
-static sregion_t key_array[] = {
+#define SC_TICK 0x29
+#define SC_1 0x02
+#define SC_2 0x03
+#define SC_3 0x04
+#define SC_4 0x05
+#define SC_5 0x06
+#define SC_6 0x07
+#define SC_7 0x08
+#define SC_8 0x09
+#define SC_9 0x0a
+#define SC_0 0x0b
+#define SC_MINUS 0xc
+#define SC_EQUAL 0xd
+#define SC_BKSP 0xe
+#define SC_TAB 0xf
+#define SC_Q 0x10
+#define SC_W 0x11
+#define SC_E 0x12
+#define SC_R 0x13
+#define SC_T 0x14
+#define SC_Y 0x15
+#define SC_U 0x16
+#define SC_I 0x17
+#define SC_O 0x18
+#define SC_P 0x19
+#define SC_LBRACKET 0x1a
+#define SC_RBRACKET 0x1b
+#define SC_BSLASH 0x2b
+#define SC_CAPS 0x3a
+#define SC_A 0x1e
+#define SC_S 0x1f
+#define SC_D 0x20
+#define SC_F 0x21
+#define SC_G 0x22
+#define SC_H 0x23
+#define SC_J 0x24
+#define SC_K 0x25
+#define SC_L 0x26
+#define SC_SEMICOLON 0x27
+#define SC_QUOTE 0x28
+#define SC_ENTER 0x1c
+#define SC_LSHIFT 0x2a
+#define SC_Z 0x2c
+#define SC_X 0x2d
+#define SC_C 0x2e
+#define SC_V 0x2f
+#define SC_B 0x30
+#define SC_N 0x31
+#define SC_M 0x32
+#define SC_COMMA 0x33
+#define SC_PERIOD 0x34
+#define SC_FSLASH 0x35
+#define SC_RSHIFT 0x36
+#define SC_LCTRL 0x1d
+#define SC_LALT 0x38
+#define SC_SPACE 0x39
+#define SC_RALT 0xb8
+#define SC_RCRTL 0x9d
+#define SC_LEFT 0xcb
+#define SC_UP 0xc8
+#define SC_DOWN 0xd0
+#define SC_RIGHT 0xcd
+#define SC_ESCAPE 0x1
+#define SC_F1 0x3b
+#define SC_F2 0x3c
+#define SC_F3 0x3d
+#define SC_F4 0x3e
+#define SC_F5 0x3f
+#define SC_F6 0x40
+#define SC_F7 0x41
+#define SC_F8 0x42
+#define SC_F9 0x43
+#define SC_F10 0x44
+#define SC_F11 0x57
+#define SC_F12 0x58
+
+static char sctoasc[2][256] = {
 	{
-		0, 0, 
-		0, 
-		"~1234567890-=",
-		"`!@#$%^&*()_+"
+//      0    1    2    3    4    5    6    7    8    9    a    b    c    d    e    f
+	0,   27,  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 8,   9,   // 0x00
+	'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', 13,  0,   'a', 's', // 0x10
+	'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'','`', 0,   '\\','z', 'x', 'c', 'v', // 0x20
+	'b', 'n', 'm', ',', '.', '/', 0,   '*', 0,   ' ', 0,   0,   0,   0,   0,   0,   // 0x30
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   '-', 0,   0,   0,   '+', 0,   // 0x40
+	0,   0,   0,   '.', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x50
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x60
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x70
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x80
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   13,  0,   0,   0,   // 0x90
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xa0
+	0,   0,   0,   0,   0,   '/', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xb0
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xc0
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xd0
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xe0
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0    // 0xf0
 	},
 	{
-		13*16, 0, 
-		0xe, 
-		"Bksp",
-		"Bksp"
-	},
-	{
-		0, 1*16, 
-		KEY_TAB, 
-		"Tab",
-		"Tab"
-	},
-	{
-		KEY_WIDTH(3)+1, 1*16, 
-		0, 
-		"qwertyuiop[]\\",
-		"QWERTYUIOP{}|"
-	},
-	{
-		0, 2*16, 
-		KEY_CAPS, 
-		"CAPS",
-		"CAPS"
-	},
-	{
-		KEY_WIDTH(4)+1, 2*16, 
-		0, 
-		"asdfghjkl;'",
-		"ASDFGHJKL:\""
-	},
-	{
-		KEY_WIDTH(4)+1 + (11*16), 2*16, 
-		KEY_ENTER, 
-		"Enter",
-		"Enter"
-	},
-	{
-		0, 3*16, 
-		KEY_SHIFT, 
-		"Shift",
-		"Shift"
-	},
-	{
-		256 - 2*16, 3*16, 
-		0, 
-		"\xc8",
-		"\xc8"
-	},
-	{
-		KEY_WIDTH(5) + 1, 3*16,
-		0, 
-		"zxcvbnm,./",
-		"ZXCVBNM<>?"
-	},
-	{
-		0, 4*16, 
-		KEY_CONTROL, 
-		"Ctrl",
-		"Ctrl"
-	},
-	{
-		KEY_WIDTH(4) + 1, 4*16, 
-		KEY_ALT, 
-		"Alt",
-		"Alt"
-	},
-	{
-		KEY_WIDTH(4) + 1 + KEY_WIDTH(3) + 1, 4*16, 
-		KEY_SPACE, 
-		"     SPACE     ",
-		"     SPACE     "
-	},
-	{
-		256 - 3*16, 4*16, 
-		0, 
-		"\xcb\xd0\xcd",
-		"\xcb\xd0\xcd"
+//      0    1    2    3    4    5    6    7    8    9    a    b    c    d    e    f
+	0,   27,  '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', 8,   9,   // 0x00
+	'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', 13,  0,   'A', 'S', // 0x10
+	'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~', 0,   '|', 'Z', 'X', 'C', 'V', // 0x20
+	'B', 'N', 'M', '<', '>', '?', 0,   '*', 0,   ' ', 0,   0,   0,   0,   0,   0,   // 0x30
+	0,   0,   0,   0,   0,   0,   0,   '7', '8', '9', '-', '4', '5', '6', '+', '1', // 0x40
+	'2', '3', '0', '.', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x50
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x60
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x70
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0x80
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   13,  0,   0,   0,   // 0x90
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xa0
+	0,   0,   0,   0,   0,   '/', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xb0
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xc0
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xd0
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   // 0xe0
+	0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0    // 0xf0
 	}
 };
+
+
+static sregion_t key_array[] = {
+	{
+		0, 0, 0,
+		0, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{SC_TICK, SC_1, SC_2, SC_3, SC_4, SC_5, SC_6, SC_7, SC_8, SC_9, SC_0, SC_MINUS, SC_EQUAL,0}
+	},
+	{
+		13*16, 0, 0,
+		SC_BKSP, 
+		{ 'B', 'k', 's', 'p', 0 }
+	},
+	{
+		0, 1*16, 0,
+		SC_TAB, 
+		{ 'T', 'a', 'b', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1, 1*16, 0,
+		0, 
+		{SC_Q, SC_W, SC_E, SC_R, SC_T, SC_Y, SC_U, SC_I, SC_O, SC_P, SC_LBRACKET, SC_RBRACKET, SC_BSLASH,0}
+	},
+	{
+		0, 2*16,  0,
+		SC_CAPS, 
+		{ 'C', 'A', 'P', 'S', 0 }
+	},
+	{
+		KEY_WIDTH(4)+1, 2*16, 0,
+		0, 
+		{SC_A, SC_S, SC_D, SC_F, SC_G, SC_H, SC_J, SC_K, SC_L, SC_SEMICOLON, SC_RBRACKET, SC_QUOTE,0}
+	},
+	{
+		KEY_WIDTH(4)+1 + (11*16), 2*16,  0,
+		SC_ENTER, 
+		{ 'E', 'n', 't', 'e', 'r', 0 }
+	},
+	{
+		0, 3*16,  0,
+		SC_LSHIFT, 
+		{ 'S', 'h', 'i', 'f', 't', 0 }
+	},
+	{
+		256 - 2*16, 3*16, 0,
+		0, 
+		{SC_UP}
+	},
+	{
+		KEY_WIDTH(5) + 1, 3*16, 0,
+		0, 
+		{SC_Z, SC_X, SC_C, SC_V, SC_B, SC_N, SC_M, SC_COMMA, SC_PERIOD, SC_FSLASH,0}
+	},
+	{
+		0, 4*16, 0,
+		SC_LCTRL, 
+		{ 'C', 't', 'r', 'l', 0 }
+	},
+	{
+		KEY_WIDTH(4) + 1, 4*16, 0,
+		SC_LALT, 
+		{ 'A', 'l', 't', 0 }
+	},
+	{
+		KEY_WIDTH(4) + 1 + KEY_WIDTH(3) + 1, 4*16, 0,
+		SC_SPACE, 
+		{ ' ', ' ', ' ', ' ', ' ', 'S', 'P', 'A', 'C', 'E', ' ', ' ', ' ', ' ', ' ', 0 }
+	},
+	{
+		256 - 3*16, 4*16, 0,
+		0, 
+		{SC_LEFT, SC_DOWN, SC_RIGHT,0}
+	}
+};
+
+static sregion_t *key_caps = 0;
+static sregion_t *key_shift = 0;
 
 uint8_t key_arrows[4][8] = {
 	{ 0x00, 0x10, 0x38, 0x7C, 0x10, 0x10, 0x10, 0x00 }, //up
@@ -1162,14 +1268,29 @@ static int key_touching_position = 0;
 static sregion_t *key_touching_last = 0;
 static int key_touching_position_last = 0;
 
+static int keyboard_dirty = 1;
+static int keyboard_caps = 0;
+static int keyboard_shift = 0;
+
+static void keyboard_refresh();
+
 static int region_to_key(sregion_t *region, int position) {
 	if(region == 0) {
 		return 0;
 	}
 	if(region->type == 0) {
-		return region->text[position];
+		//printf("key up: %d %d %c %s\n", position, region->sc_code[position], region->text[position], region->text);
+		return region->sc_code[position];
 	}
 	return region->type;
+}
+
+static int sc_to_ascii(int c) {
+	int ch = sctoasc[keyboard_shift][c&0xff];
+	if(keyboard_caps) {
+		ch = toupper(ch);
+	}
+	return ch;
 }
 
 static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t c);
@@ -1199,8 +1320,9 @@ static void keyboard_input(uint32_t keys) {
 				if(x < region->x) {
 					continue;
 				}
-				char *text = shift ? region->shift_text : region->text;
-				len = strlen(text);
+				//char *text = shift ? region->shift_text : region->text;
+				//len = strlen(text);
+				len = region->length;
 				int width = region->type == 0 ? (len*16) : KEY_WIDTH(len);
 				if(x > (region->x + width)) {
 					//printf("skip: %s %d %d\n", region->x, width, text);
@@ -1235,7 +1357,18 @@ static void keyboard_input(uint32_t keys) {
 			if (keypresscallback) {
 				keypresscallback(key, 0);
 			}
-			key_draw_pressed(key_touching_last, key_touching_position_last, KEY_COLOR);
+			switch (key) {
+			case SC_CAPS:
+			case SC_LSHIFT:
+				break;
+			default:
+				if(keyboard_shift) {
+					keyboard_shift = 0;
+					keyboard_refresh();
+				}
+				key_draw_pressed(key_touching_last, key_touching_position_last, KEY_COLOR);
+				break;
+			}
 		}
 		if(key_touching) {
 			int key =region_to_key(key_touching, key_touching_position);
@@ -1243,7 +1376,7 @@ static void keyboard_input(uint32_t keys) {
 			//send a key down event for the current key
 			if (OSD_HandleChar(key)) {
 				if (((keyasciififoend+1)&(KEYFIFOSIZ-1)) != keyasciififoplc) {
-					keyasciififo[keyasciififoend] = key;
+					keyasciififo[keyasciififoend] = sctoasc[0][key&0xff];
 					keyasciififoend = ((keyasciififoend+1)&(KEYFIFOSIZ-1));
 				}
 			}
@@ -1251,7 +1384,18 @@ static void keyboard_input(uint32_t keys) {
 			if (keypresscallback) {
 				keypresscallback(key, 1);
 			}
-			key_draw_pressed(key_touching, key_touching_position, KEY_COLOR_PRESS);
+			switch (key) {
+			case SC_LSHIFT:
+				keyboard_shift = keyboard_shift == 0 ? 1 : 0;
+				keyboard_refresh();
+				break;
+			case SC_CAPS:
+				keyboard_caps = keyboard_caps == 0 ? 1 : 0;
+				keyboard_refresh();
+				break;
+			default:
+				key_draw_pressed(key_touching, key_touching_position, KEY_COLOR_PRESS);
+			}
 		}
 	}
 }
@@ -1274,6 +1418,9 @@ static draw_arrow(int num, uint8_t c, uint8_t *line) {
 static void key_draw(int x, int y, char *text, int width, uint8_t c) {
 	uint8_t *buf = &bottom_screen[x];
 	uint8_t *line = buf + (256 * y);
+	int ch;
+	uint8_t *bitmap;
+
 	memset(line + 1, c, width - 2);
 	line += 256;
 	for(int j=0;j<13;j++) {
@@ -1284,22 +1431,27 @@ static void key_draw(int x, int y, char *text, int width, uint8_t c) {
 	line += 256;
 
 	while(*text) {	
-		uint8_t *bitmap = font8x8_basic[*text];
 		line = buf + (256 * (y + 5)) + 2;
 		switch(*text) {
-			case KEY_UP:
+			case SC_UP:
 				draw_arrow(0, c, line);
 				break;
-			case KEY_DOWN:
+			case SC_DOWN:
 				draw_arrow(1, c, line);
 				break;
-			case KEY_LEFT:
+			case SC_LEFT:
 				draw_arrow(2, c, line);
 				break;
-			case KEY_RIGHT:
+			case SC_RIGHT:
 				draw_arrow(3, c, line);
 				break;
 			default:
+				if(width == 15) {
+					ch = sc_to_ascii(*text);
+				} else {
+					ch = *text;
+				}
+				bitmap = font8x8_basic[ch & 127];
 				bitmap_draw(bitmap, c, line);
 				break;
 		}
@@ -1315,8 +1467,8 @@ static void key_draw(int x, int y, char *text, int width, uint8_t c) {
 static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t c) {
 	int x = touching->x;
 	int y = touching->y;
-	uint8_t *text = touching->text;
-	int len = strlen(text);
+	uint8_t *text = touching->sc_code;
+	int len = touching->length;
 	int width = 15;
 	uint8_t _text[2] = {0,0};
 	if(touching->type == 0) {
@@ -1330,6 +1482,8 @@ static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t
 
 	uint8_t *buf = &bottom_screen[x];
 	uint8_t *line = buf + (256 * y);
+	int ch;
+	uint8_t *bitmap;
 	
 	memset(line + 1, c, width - 2);
 	line += 256;
@@ -1341,22 +1495,27 @@ static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t
 	line += 256;
 
 	while(*text) {	
-		uint8_t *bitmap = font8x8_basic[*text];
 		line = buf + (256 * (y + 5)) + 2;
 		switch(*text) {
-			case KEY_UP:
+			case SC_UP:
 				draw_arrow(0, c, line);
 				break;
-			case KEY_DOWN:
+			case SC_DOWN:
 				draw_arrow(1, c, line);
 				break;
-			case KEY_LEFT:
+			case SC_LEFT:
 				draw_arrow(2, c, line);
 				break;
-			case KEY_RIGHT:
+			case SC_RIGHT:
 				draw_arrow(3, c, line);
 				break;
 			default:
+				if(width == 15) {
+					ch = sc_to_ascii(*text);
+				} else {
+					ch = *text;
+				}
+				bitmap = font8x8_basic[ch & 127];
 				bitmap_draw(bitmap, c, line);
 				break;
 		}
@@ -1372,31 +1531,34 @@ static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t
 static void region_draw(sregion_t *region, int shift) {
 	int x = region->x;
 	int y = region->y;
-	char *text = shift ? region->shift_text : region->text;
-	int len = strlen(text);
+	uint8_t *sc_code = region->sc_code;
+	int len = region->length;
 	
 	if(y < 0 || (y+16) >= 192) {
 		return;
 	}
 
 	switch(region->type) {
-	case KEY_UP:
-	case KEY_DOWN:
-	case KEY_LEFT:
-	case KEY_RIGHT:
-		len = 1;
 	case 0:
 		for(int i = 0;i < len;i++) {
-			key_draw(x, y, &text[i],15,KEY_COLOR);
+			key_draw(x, y, &sc_code[i],15,KEY_COLOR);
 			x += 16;
 		}
 		break;
 	default:
-		key_draw(x, y, text, KEY_WIDTH(len), KEY_COLOR);
+		key_draw(x, y, sc_code, KEY_WIDTH(len), KEY_COLOR);
 		break;
 	}
 }
-static int keyboard_dirty = 1;
+
+static void keyboard_refresh() {
+	for(int i=0;i < key_array_count; i++) {
+		region_draw(&key_array[i], 0);
+	}
+	key_draw_pressed(key_shift, 0, keyboard_shift == 0 ? KEY_COLOR: KEY_COLOR_PRESS);
+	key_draw_pressed(key_caps, 0, keyboard_caps == 0 ? KEY_COLOR: KEY_COLOR_PRESS);
+}
+
 static void keyboard_draw() {
 
 	uint16_t *dest16 = (uint16_t*)bgGetGfxPtr(ds_bg_sub);
@@ -1411,12 +1573,24 @@ static void keyboard_draw() {
 	}
 
 	if(keyboard_dirty) {
-		for(int i=0;i < key_array_count; i++) {
-			region_draw(&key_array[i], 0);
-		}
+		keyboard_refresh();
 	}
 
 	while(DMA_CR(1) & DMA_BUSY);
 	dmaCopyWordsAsynch(1, bottom_screen, dest16, 256 * 192 );
 	keyboard_dirty = 0;
+}
+
+static void keyboard_init() {
+	for(int i=0;i < key_array_count; i++) {
+		key_array[i].length = strlen(key_array[i].sc_code);
+		switch(key_array[i].type) {
+		case SC_LSHIFT:
+			key_shift = &key_array[i];
+			break;
+		case SC_CAPS:
+			key_caps = &key_array[i];
+			break;
+		}
+	}
 }
