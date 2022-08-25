@@ -171,7 +171,8 @@ void NdsSoundDrv_PCM_Shutdown(void)
     
     NdsSoundDrv_PCM_StopPlayback();
     
-    Initialised = 0;}
+    Initialised = 0;
+}
 
 int NdsSoundDrv_PCM_BeginPlayback(char *BufferStart, int BufferSize,
 						int NumDivisions, void ( *CallBackFunc )( void ) )
@@ -225,12 +226,12 @@ void NdsSoundDrv_PCM_StopPlayback(void)
 static int oldIME;
 void NdsSoundDrv_PCM_Lock(void)
 {
-    //oldIME = enterCriticalSection();
+    oldIME = enterCriticalSection();
 }
 
 void NdsSoundDrv_PCM_Unlock(void)
 {
-    //leaveCriticalSection(oldIME);
+    leaveCriticalSection(oldIME);
 }
 
 

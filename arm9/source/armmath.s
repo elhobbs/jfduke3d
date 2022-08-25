@@ -5,6 +5,8 @@
 	.section .itcm,"ax",%progbits
 
 	.align	4
+	.arch	armv5te
+	.cpu	arm946e-s
 	.arm
 
 .macro smuldef a
@@ -33,6 +35,8 @@ smulscale\a:
 	.type smulscale32 STT_FUNC
 	.global	smul_32_32_64
 	.type smul_32_32_64 STT_FUNC
+	.global	vlineasm11
+	.type vlineasm11 STT_FUNC
 	smuldef 1
 	smuldef 2
 	smuldef 3
@@ -125,6 +129,26 @@ smul_32_32_64:
 	mov		r1, r3
 
 	bx		lr
+
+	.align
+	.end
+
+#void vlineasm1(int vinc, void *paloffs, int cnt, unsigned int vplc, void *bufplc, void *p)
+.extern (glogy)
+.pool
+vlineasm11:
+	push {r4, r5, r6, r7, r8, lr}
+	#r0 = vinc
+	#r1 = paloffs
+	#r2 = cnt
+	#r3 = vplc
+	ldr r4, [sp, #24]	#r4 = bufplc
+	ldr r5, [sp, #20]	#r5 = p
+
+
+
+	pop {r4, r5, r6, r7, r8, lr}
+	bx lr
 
 	.align
 	.end

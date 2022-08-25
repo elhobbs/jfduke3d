@@ -11,6 +11,9 @@
 #include "a.h"
 #include "osd.h"
 
+#include "cyg-profile.h"
+
+
 int xres=-1, yres=-1, bpp=0, fullscreen=0, bytesperline, imageSize;
 static unsigned char *frame;
 intptr_t frameplace=0;
@@ -122,6 +125,8 @@ void nds_init() {
 	swiWaitForVBlank();
 
 	keyboard_init();
+
+	cygprofile_begin();
 }
 
 int main(int argc, char *argv[]) {
@@ -133,6 +138,7 @@ int main(int argc, char *argv[]) {
 
 	startwin_open();
 	baselayer_init();
+	
 
     int r = app_main(_buildargc, (char const * const*)_buildargv);
 
@@ -151,6 +157,9 @@ static void shutdownvideo(void)
 
 void uninitsystem(void)
 {
+
+	cygprofile_end();
+
 	uninitinput();
 	uninitmouse();
 	uninittimer();
@@ -431,8 +440,12 @@ void copy_buffer(u16 *dest16, byte *buffer) {
 //
 // showframe() -- update the display
 //
+//#define __MEASURE__
+
 #ifdef __MEASURE__
 static uint64_t last_frame_ticks = 0;
+static int fps[256];
+static int current_frame = 0;
 #endif
 
 void showframe(void)
@@ -441,10 +454,26 @@ void showframe(void)
 		return;
 	}
 #ifdef __MEASURE__
+	uint8_t *frm = (uint8_t *)frameplace;
 	uint64_t frame_ticks = ds_time();
-	printf("showframe %lld\n", frame_ticks - last_frame_ticks);
+	//printf("showframe %lld\n", frame_ticks - last_frame_ticks);
+	fps[current_frame] = (int )((frame_ticks - last_frame_ticks) >> 2);
+	//printf("showframe %d %d\n", current_frame, fps);
+	for(int i=0;i<256;i++) {
+		int f = 191 - fps[i];
+		if(f < 0) {
+			f = 0;
+		} else if(f > 191) {
+			f = 191;
+		}
+		frm[i + (55 * 256)] = 256 - 8; 
+		frm[i + (147 * 256)] = 256 - 8; 
+		frm[i + (f * 256)] = ((i == current_frame) ? 251 : 252); 
+	}
+	current_frame++;
+	current_frame &= 0xff;
 	last_frame_ticks = frame_ticks;
-	//swiWaitForVBlank();
+	swiWaitForVBlank();
 #endif
 	copy_buffer(surface,frameplace);
 	keyboard_draw();
@@ -1046,7 +1075,7 @@ typedef struct {
 	uint8_t sc_code[20];
 } sregion_t;
 
-#define KEY_WIDTH(_n) (8*(_n)+3)
+#define KEY_WIDTH(_n) (5*(_n)+6)
 
 #define XSTR(_a) STR(__a)
 #define STR(__a) #__a
@@ -1093,6 +1122,7 @@ typedef struct {
 #define SC_QUOTE 0x28
 #define SC_ENTER 0x1c
 #define SC_LSHIFT 0x2a
+#define SC_RSHIFT 0x9d
 #define SC_Z 0x2c
 #define SC_X 0x2d
 #define SC_C 0x2e
@@ -1108,7 +1138,7 @@ typedef struct {
 #define SC_LALT 0x38
 #define SC_SPACE 0x39
 #define SC_RALT 0xb8
-#define SC_RCRTL 0x9d
+#define SC_RCTRL 0x9d
 #define SC_LEFT 0xcb
 #define SC_UP 0xc8
 #define SC_DOWN 0xd0
@@ -1171,74 +1201,180 @@ static char sctoasc[2][256] = {
 
 static sregion_t key_array[] = {
 	{
-		0, 0, 0,
+		0, 0*16, 0,
+		SC_ESCAPE, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'E', 's', 'c', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1, 0*16, 0,
+		SC_F1, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '1', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 1*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F2, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '2', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 2*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F3, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '3', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 3*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F4, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '4', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 4*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F5, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '5', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 5*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F6, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '6', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 6*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F7, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '7', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 7*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F8, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '8', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 8*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F9, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '9', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 9*(KEY_WIDTH(2)+1), 0*16, 0,
+		SC_F10, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '1', '0', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 9*(KEY_WIDTH(2)+1) + 1* (KEY_WIDTH(3)+1), 0*16, 0,
+		SC_F11, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '1', '1', 0 }
+	},
+	{
+		KEY_WIDTH(3)+1 + 9*(KEY_WIDTH(2)+1) + 2* (KEY_WIDTH(3)+1), 0*16, 0,
+		SC_F12, 
+		//"`1234567890-=",
+		//"~!@#$%^&*()_+",
+		{'F', '1', '2', 0 }
+	},
+	{
+		0, 1*16, 0,
 		0, 
 		//"`1234567890-=",
 		//"~!@#$%^&*()_+",
 		{SC_TICK, SC_1, SC_2, SC_3, SC_4, SC_5, SC_6, SC_7, SC_8, SC_9, SC_0, SC_MINUS, SC_EQUAL,0}
 	},
 	{
-		13*16, 0, 0,
+		13*16, 1*16, 0,
 		SC_BKSP, 
 		{ 'B', 'k', 's', 'p', 0 }
 	},
 	{
-		0, 1*16, 0,
+		0, 2*16, 0,
 		SC_TAB, 
 		{ 'T', 'a', 'b', 0 }
 	},
 	{
-		KEY_WIDTH(3)+1, 1*16, 0,
+		KEY_WIDTH(3)+1, 2*16, 0,
 		0, 
 		{SC_Q, SC_W, SC_E, SC_R, SC_T, SC_Y, SC_U, SC_I, SC_O, SC_P, SC_LBRACKET, SC_RBRACKET, SC_BSLASH,0}
 	},
 	{
-		0, 2*16,  0,
+		0, 3*16,  0,
 		SC_CAPS, 
 		{ 'C', 'A', 'P', 'S', 0 }
 	},
 	{
-		KEY_WIDTH(4)+1, 2*16, 0,
+		KEY_WIDTH(4)+1, 3*16, 0,
 		0, 
-		{SC_A, SC_S, SC_D, SC_F, SC_G, SC_H, SC_J, SC_K, SC_L, SC_SEMICOLON, SC_RBRACKET, SC_QUOTE,0}
+		{SC_A, SC_S, SC_D, SC_F, SC_G, SC_H, SC_J, SC_K, SC_L, SC_SEMICOLON, SC_QUOTE,0}
 	},
 	{
-		KEY_WIDTH(4)+1 + (11*16), 2*16,  0,
+		KEY_WIDTH(4)+1 + (11*16), 3*16,  0,
 		SC_ENTER, 
 		{ 'E', 'n', 't', 'e', 'r', 0 }
 	},
 	{
-		0, 3*16,  0,
+		0, 4*16,  0,
 		SC_LSHIFT, 
 		{ 'S', 'h', 'i', 'f', 't', 0 }
 	},
 	{
-		256 - 2*16, 3*16, 0,
+		256 - 2*16, 4*16, 0,
 		0, 
 		{SC_UP}
 	},
 	{
-		KEY_WIDTH(5) + 1, 3*16, 0,
+		KEY_WIDTH(5) + 1, 4*16, 0,
 		0, 
 		{SC_Z, SC_X, SC_C, SC_V, SC_B, SC_N, SC_M, SC_COMMA, SC_PERIOD, SC_FSLASH,0}
 	},
 	{
-		0, 4*16, 0,
+		KEY_WIDTH(5) + 1 + 10*16, 4*16,  0,
+		SC_RSHIFT, 
+		{ 'S', 'h', 'i', 'f', 't', 0 }
+	},
+	{
+		0, 5*16, 0,
 		SC_LCTRL, 
 		{ 'C', 't', 'r', 'l', 0 }
 	},
 	{
-		KEY_WIDTH(4) + 1, 4*16, 0,
+		KEY_WIDTH(4) + 1, 5*16, 0,
 		SC_LALT, 
 		{ 'A', 'l', 't', 0 }
 	},
 	{
-		KEY_WIDTH(4) + 1 + KEY_WIDTH(3) + 1, 4*16, 0,
+		KEY_WIDTH(4) + 1 + KEY_WIDTH(3) + 1, 5*16, 0,
 		SC_SPACE, 
-		{ ' ', ' ', ' ', ' ', ' ', 'S', 'P', 'A', 'C', 'E', ' ', ' ', ' ', ' ', ' ', 0 }
+		{ ' ', ' ', ' ', ' ', ' ', ' ', ' ', 'S', 'P', 'A', 'C', 'E', ' ', ' ', ' ', ' ', ' ', ' ', ' ', 0 }
 	},
 	{
-		256 - 3*16, 4*16, 0,
+		KEY_WIDTH(4) + 1 + KEY_WIDTH(3) + 1 + KEY_WIDTH(19) + 1, 5*16, 0,
+		SC_RALT, 
+		{ 'A', 'l', 't', 0 }
+	},
+	{
+		KEY_WIDTH(4) + 1 + KEY_WIDTH(3) + 1 + KEY_WIDTH(19) + 1 + KEY_WIDTH(3) + 1, 5*16, 0,
+		SC_RCTRL, 
+		{ 'C', 't', 'r', 'l',  0 }
+	},
+	{
+		256 - 3*16, 5*16, 0,
 		0, 
 		{SC_LEFT, SC_DOWN, SC_RIGHT,0}
 	}
@@ -1250,11 +1386,12 @@ static sregion_t *key_shift = 0;
 uint8_t key_arrows[4][8] = {
 	{ 0x00, 0x10, 0x38, 0x7C, 0x10, 0x10, 0x10, 0x00 }, //up
 	{ 0x00, 0x10, 0x10, 0x10, 0x7C, 0x38, 0x10, 0x00 }, //down
-	{ 0x00, 0x00, 0x08, 0x0C, 0x7E, 0x0C, 0x08, 0x00 }, //left
-	{ 0x00, 0x00, 0x10, 0x30, 0x7E, 0x30, 0x10, 0x00 } //right
+	{ 0x00, 0x00, 0x10, 0x30, 0x7E, 0x30, 0x10, 0x00 }, //right
+	{ 0x00, 0x00, 0x08, 0x0C, 0x7E, 0x0C, 0x08, 0x00 } //left
 };
 
-#include "font8x8_basic.h"
+//#include "font8x8_basic.h"
+#include "spleen5x8.h"
 
 static int key_array_count = sizeof(key_array)/sizeof(sregion_t);
 static uint8_t *bottom_screen = 0;
@@ -1400,7 +1537,7 @@ static void keyboard_input(uint32_t keys) {
 	}
 }
 
-static void bitmap_draw(uint8_t *bitmap, uint8_t c, uint8_t *line) {
+/*static void bitmap_draw(uint8_t *bitmap, uint8_t c, uint8_t *line) {
 	for (int xx = 0; xx < 8; xx++) {
 		for (int yy = 0; yy < 8; yy++) {
 			int set = bitmap[xx] & 1 << yy;
@@ -1408,11 +1545,27 @@ static void bitmap_draw(uint8_t *bitmap, uint8_t c, uint8_t *line) {
 		}
 		line += 256;
 	}
+}*/
+
+static void bitmap_draw(uint8_t *bitmap, uint8_t c, uint8_t *line) {
+	for (int yy = 0; yy < 8; yy++) {
+		for (int xx = 0; xx < 5; xx++) {
+			int set = bitmap[yy] & (0x80 >> xx);
+			line[xx] = set ? BACKGROUND_COLOR : c;
+		}
+		line += 256;
+	}
 }
 
 static draw_arrow(int num, uint8_t c, uint8_t *line) {
 	uint8_t *bitmap = key_arrows[num];
-	bitmap_draw(bitmap, c, line);
+	for (int yy = 0; yy < 8; yy++) {
+		for (int xx = 0; xx < 8; xx++) {
+			int set = bitmap[yy] & (0x80 >> xx);
+			line[xx] = set ? BACKGROUND_COLOR : c;
+		}
+		line += 256;
+	}
 }
 
 static void key_draw(int x, int y, char *text, int width, uint8_t c) {
@@ -1451,8 +1604,9 @@ static void key_draw(int x, int y, char *text, int width, uint8_t c) {
 				} else {
 					ch = *text;
 				}
-				bitmap = font8x8_basic[ch & 127];
-				bitmap_draw(bitmap, c, line);
+				//bitmap = font8x8_basic[ch & 127];
+				bitmap = &spleen5x8_data[(ch - 32) * 8];
+				bitmap_draw(bitmap, c, line+1);
 				break;
 		}
 
@@ -1460,7 +1614,7 @@ static void key_draw(int x, int y, char *text, int width, uint8_t c) {
 			break;
 		}
 		text++;
-		buf += 8;
+		buf += 5;
 	}
 }
 
@@ -1515,7 +1669,8 @@ static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t
 				} else {
 					ch = *text;
 				}
-				bitmap = font8x8_basic[ch & 127];
+				//bitmap = font8x8_basic[ch & 127];
+				bitmap = &spleen5x8_data[(ch - 32) * 8];
 				bitmap_draw(bitmap, c, line);
 				break;
 		}
@@ -1524,7 +1679,7 @@ static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t
 			break;
 		}
 		text++;
-		buf += 8;
+		buf += 5;
 	}
 }
 

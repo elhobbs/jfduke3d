@@ -38,6 +38,8 @@ Modifications for JonoF's port by Jonathon Fowler (jf@jonof.id.au)
 
 #include "util_lib.h"
 
+#include "cyg-profile.h"
+
 
 #define TIMERUPDATESIZ 32
 
@@ -1071,7 +1073,7 @@ void caches(void)
           if ((*cac[i].lock) >= 200)
           {
                 sprintf(buf,"Locked- %d: Leng:%d, Lock:%d",i,cac[i].leng,*cac[i].lock);
-                printext256(0L,k,31,-1,buf,1); k += 6;
+                printext256(0L,k,31,-1,buf,0); k += 6;
           }
 
      k += 6;
@@ -1080,7 +1082,7 @@ void caches(void)
           if (lumplockbyte[i] >= 200)
           {
                 sprintf(buf,"RTS Locked %d:",i);
-                printext256(0L,k,31,-1,buf,1); k += 6;
+                printext256(0L,k,31,-1,buf,0); k += 6;
           }
 
 
@@ -8121,6 +8123,7 @@ if (VOLUMEONE) {
     waitforit("before MODE_END");
     while ( !(ps[myconnectindex].gm&MODE_END) ) //The whole loop!!!!!!!!!!!!!!!!!!
     {
+        cygprofile_enable();
 waitforit("handleevents");
         if (handleevents()) {   // JBF
             if (quitevent) {
@@ -8224,6 +8227,7 @@ if (VOLUMEONE) {
         faketimerhandler();
     }
 
+    cygprofile_enable();
     gameexit(" ");
 
     return 0;

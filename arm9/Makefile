@@ -100,9 +100,10 @@ ARCH	:=	-mthumb -mthumb-interwork
 CFLAGS	:=	-g -Wall -O3 \
  			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer \
 			-ffast-math \
-			$(ARCH)
+			$(ARCH) \
+#			-finstrument-functions -mpoke-function-name
 
-CFLAGS0	:=	-g -Wall -O0 \
+CFLAGS0	:=	-g -Wall -S -O0 \
  			-march=armv5te -mtune=arm946e-s \
 			-ffast-math \
 			$(ARCH)
