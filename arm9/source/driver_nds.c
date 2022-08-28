@@ -48,8 +48,10 @@ void NdsSoundDrv_PCM_StopPlayback(void);
 
 static void FillBufferPortion(int remaining)
 {
-    int len;
+    int len, i;
 	uint8_t *sptr;
+    uint32_t *src, *dst;
+    int c32;
 
 	while (remaining > 0) {
 		if (MixBufferUsed == MixBufferSize) {
@@ -78,9 +80,22 @@ static void FillBufferPortion(int remaining)
                 //    printf("m1 %08x %6d %6d\n", mix_buffer, pos, lenx);
                 //    exit(-1);
                 //}
+                //printf("%d %d\n", pos, lenx);
                 uint8_t *buf = &mix_buffer[pos];
-                for(int i=0;i<lenx;i++) {
-                    *buf++ = sptr[i] ^ 0x80;
+                //for(int i=0;i<lenx;i++) {
+                //    *buf++ = sptr[i] ^ 0x80;
+                //}
+                dst = buf;
+                src = sptr;
+                c32 = lenx >> 2;
+                for(i=0;i<c32-4;i+=4) {
+                    dst[i+0] = src[i+0] ^ 0x80808080L;
+                    dst[i+1] = src[i+1] ^ 0x80808080L;
+                    dst[i+2] = src[i+2] ^ 0x80808080L;
+                    dst[i+3] = src[i+3] ^ 0x80808080L;
+                }
+                for(;i<c32;i++) {
+                    dst[i] = src[i] ^ 0x80808080L;
                 }
                 //memcpy(&mix_buffer[pos],sptr,lenx);
                 DC_FlushRange(&mix_buffer[pos],lenx);
@@ -94,9 +109,22 @@ static void FillBufferPortion(int remaining)
                 //    printf("m2 %08x %6d %6d\n", mix_buffer, pos, lenx);
                 //    exit(-1);
                 //}
+                //printf("%d %d\n", pos, lenx);
                 uint8_t *buf = &mix_buffer[pos];
-                for(int i=0;i<lenx;i++) {
-                    *buf++ = sptr[i] ^ 0x80;
+                //for(int i=0;i<lenx;i++) {
+                //    *buf++ = sptr[i] ^ 0x80;
+                //}
+                dst = buf;
+                src = sptr;
+                c32 = lenx >> 2;
+                for(i=0;i<c32-4;i+=4) {
+                    dst[i+0] = src[i+0] ^ 0x80808080L;
+                    dst[i+1] = src[i+1] ^ 0x80808080L;
+                    dst[i+2] = src[i+2] ^ 0x80808080L;
+                    dst[i+3] = src[i+3] ^ 0x80808080L;
+                }
+                for(;i<c32;i++) {
+                    dst[i] = src[i] ^ 0x80808080L;
                 }
                 //memcpy(&mix_buffer[pos],sptr,lenx);
                 DC_FlushRange(&mix_buffer[pos],lenx);
@@ -130,7 +158,7 @@ static void NdsSoundDrv_FillBuffer()
 	//}
 
     uint64_t end = current + (256);
-    uint32_t count = end - mix_filled;
+    uint32_t count = (end - mix_filled +3) & (~0x3L);
 
     if(count > 0) {
         FillBufferPortion(count);

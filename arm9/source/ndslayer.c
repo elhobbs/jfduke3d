@@ -1681,6 +1681,7 @@ static void key_draw_pressed(sregion_t *touching, int touching_position, uint8_t
 		text++;
 		buf += 5;
 	}
+	keyboard_dirty = 1;
 }
 
 static void region_draw(sregion_t *region, int shift) {
@@ -1712,6 +1713,7 @@ static void keyboard_refresh() {
 	}
 	key_draw_pressed(key_shift, 0, keyboard_shift == 0 ? KEY_COLOR: KEY_COLOR_PRESS);
 	key_draw_pressed(key_caps, 0, keyboard_caps == 0 ? KEY_COLOR: KEY_COLOR_PRESS);
+	keyboard_dirty = 1;
 }
 
 static void keyboard_draw() {
@@ -1725,15 +1727,15 @@ static void keyboard_draw() {
 			exit(-1);
 		}
 		memset(bottom_screen,BACKGROUND_COLOR,256 * 192/2);
-	}
-
-	if(keyboard_dirty) {
 		keyboard_refresh();
 	}
 
-	while(DMA_CR(1) & DMA_BUSY);
-	dmaCopyWordsAsynch(1, bottom_screen, dest16, 256 * 192 );
-	keyboard_dirty = 0;
+	if(keyboard_dirty) {
+		while(DMA_CR(1) & DMA_BUSY);
+		dmaCopyWordsAsynch(1, bottom_screen, dest16, 256 * 192 );
+		keyboard_dirty = 0;
+	}
+
 }
 
 static void keyboard_init() {
