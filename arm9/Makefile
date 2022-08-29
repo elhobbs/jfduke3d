@@ -108,7 +108,8 @@ CFLAGS0	:=	-g -Wall -S -O0 \
 			-ffast-math \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DPLATFORM_UNIX=1 -DUSE_POLYMOST=0 -DUSE_OPENGL=0 -DUSE_ASM=0
+CFLAGS	+=	$(INCLUDE) -DARM9 -D__NDS__ -DPLATFORM_UNIX=1 -DUSE_POLYMOST=0 -DUSE_OPENGL=0 -DUSE_ASM=0 -DENABLE_CYGPROFILE=0
+
 CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH) -march=armv5te -mtune=arm946e-s

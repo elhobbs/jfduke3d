@@ -8123,7 +8123,9 @@ if (VOLUMEONE) {
     waitforit("before MODE_END");
     while ( !(ps[myconnectindex].gm&MODE_END) ) //The whole loop!!!!!!!!!!!!!!!!!!
     {
+#if ENABLE_CYGPROFILE
         cygprofile_enable();
+#endif
 waitforit("handleevents");
         if (handleevents()) {   // JBF
             if (quitevent) {
@@ -8227,7 +8229,9 @@ if (VOLUMEONE) {
         faketimerhandler();
     }
 
+#if ENABLE_CYGPROFILE
     cygprofile_enable();
+#endif
     gameexit(" ");
 
     return 0;

@@ -125,8 +125,9 @@ void nds_init() {
 	swiWaitForVBlank();
 
 	keyboard_init();
-
+#if ENABLE_CYGPROFILE
 	cygprofile_begin();
+#endif
 }
 
 int main(int argc, char *argv[]) {
@@ -158,7 +159,9 @@ static void shutdownvideo(void)
 void uninitsystem(void)
 {
 
+#if ENABLE_CYGPROFILE
 	cygprofile_end();
+#endif
 
 	uninitinput();
 	uninitmouse();

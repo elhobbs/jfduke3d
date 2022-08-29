@@ -1,4 +1,4 @@
-#if 1
+#if ENABLE_CYGPROFILE
 
 /* 
  * cyg-profile.c - CygProfiler runtime functions.
@@ -16,6 +16,8 @@
  */
 
 /* Hint: -finstrument-functions, no_instrument_function */
+
+
 
 #include <errno.h>
 #include <stdio.h>
